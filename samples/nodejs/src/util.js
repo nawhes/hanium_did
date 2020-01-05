@@ -225,6 +225,7 @@ module.exports = {
     getVerinym,
     sendSchema,
     sendCredDef,
+    sendNym,
     getSchema,
     getCredDef,
     proverGetEntitiesFromLedger,

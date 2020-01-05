@@ -4,25 +4,39 @@ const indy = require('indy-sdk');
 const util = require('./util');
 const assert = require('assert');
 
-let poolHandle;    
+let poolName = 'pool3';
 let governmentWalletConfig = {'id': 'governmentWallet'};
 let governmentWalletCredentials = {'key': 'government_key'};
 let governmentWallet;
-let [governmentDid, governmentKey];
-let [governmentStewardDid, governmentStewardKey];
-let [governmentTranscriptCredDefId, governmentTranscriptCredDefJson]
+let governmentDid, governmentKey;
+let governmentStewardDid, governmentStewardKey;
+let governmentTranscriptCredDefId, governmentTranscriptCredDefJson;
 
 async function init(){
-    let poolName = 'pool1';
+    console.log('government is ready!');
+    
     console.log(`Open Pool Ledger: ${poolName}`);
+    let poolGenesisTxnPath = await util.getPoolGenesisTxnPath(poolName);
+    let poolConfig = {
+        "genesis_txn": poolGenesisTxnPath
+    };
+
+    try {
+        await indy.createPoolLedgerConfig(poolName, poolConfig);
+    } catch(e) {
+        if(e.message !== "PoolLedgerConfigAlreadyExistsError") {
+            throw e;
+        }
+    }
 
     await indy.setProtocolVersion(2)
 
-    poolHandle = await indy.openPoolLedger(poolName);
 }
 
 
 async function connectWithAlice1(){
+    let poolHandle = indy.openPoolLedger(poolName);
+
     console.log(`\"alice\" > Create and store in Wallet \"alice Government\" DID`);
     let [aliceGovernmentDid, aliceGovernmentKey] = await indy.createAndStoreMyDid(aliceWallet, {});
 

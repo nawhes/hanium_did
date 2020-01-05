@@ -11,14 +11,39 @@ let aliceWalletCredentials = {'key': 'alice_key'}
 let aliceWallet;
 
 async function init(){
-
-    let poolName = 'pool1';
+    console.log('alice is ready!');
+    
+    let poolName = 'pool2';
     console.log(`Open Pool Ledger: ${poolName}`);
+    let poolGenesisTxnPath = await util.getPoolGenesisTxnPath(poolName);
+    let poolConfig = {
+        "genesis_txn": poolGenesisTxnPath
+    };
+    try {
+        await indy.createPoolLedgerConfig(poolName, poolConfig);
+    } catch(e) {
+        if(e.message !== "PoolLedgerConfigAlreadyExistsError") {
+            throw e;
+        }
+    }
 
-    await indy.setProalicecolVersion(2)
+    await indy.setProtocolVersion(2)
 
     poolHandle = await indy.openPoolLedger(poolName);
 
+    if (!aliceWallet) {
+        console.log(`\"alice\" > Create wallet"`);
+        try {
+            await indy.createWallet(aliceWalletConfig, aliceWalletCredentials)
+        } catch(e) {
+            if(e.message !== "WalletAlreadyExistsError") {
+                throw e;
+            }
+        }
+        aliceWallet = await indy.openWallet(aliceWalletConfig, aliceWalletCredentials);
+    }
+
+    return;
 }
 
 async function connectWithGovernment1(){
@@ -32,17 +57,7 @@ async function connectWithGovernment1(){
         nonce: 123456789
     };
 
-    if (!aliceWallet) {
-        console.log(`\"alice\" > Create wallet"`);
-        try {
-            await indy.createWallet(aliceWalletConfig, aliceWalletCredentials)
-        } catch(e) {
-            if(e.message !== "WalletAlreadyExistsError") {
-                throw e;
-            }
-        }
-        aliceWallet = await indy.openWallet(aliceWalletConfig, aliceWalletCredentials);
-    }
+    aliceWallet = await indy.openWallet(aliceWalletConfig, aliceWalletCredentials);
 
     console.log(`\"alice\" > Create and salicere in Wallet \"aliceSteward\" DID`);
     let [aliceStewardDid, aliceStewardKey] = await indy.createAndSalicereMyDid(aliceWallet, {});

@@ -5,18 +5,19 @@ const util = require('./util');
 const assert = require('assert');
 
 
-let poolHandle;
+let poolName = 'pool1';
+
 let stewardWalletConfig = {'id': 'stewardWalletName'}
 let stewardWalletCredentials = {'key': 'steward_key'}
 let stewardWallet;
-let [stewardDid, stewardKey];
+let stewardDid, stewardKey;
 
+let poolHandle;
 
-async function init(){
+async function _init(){
 
-    console.log("gettingStarted.js -> started");
+    console.log("steward is ready!");
 
-    let poolName = 'pool1';
     console.log(`Open Pool Ledger: ${poolName}`);
     let poolGenesisTxnPath = await util.getPoolGenesisTxnPath(poolName);
     let poolConfig = {
@@ -26,6 +27,7 @@ async function init(){
         await indy.createPoolLedgerConfig(poolName, poolConfig);
     } catch(e) {
         if(e.message !== "PoolLedgerConfigAlreadyExistsError") {
+		console.log('here i am');
             throw e;
         }
     }
@@ -33,6 +35,13 @@ async function init(){
     await indy.setProtocolVersion(2)
 
     poolHandle = await indy.openPoolLedger(poolName);
+    return;
+}
+
+
+async function init(){
+
+    _init();
 
     console.log("==============================");
     console.log("=== Getting Trust Anchor credentials for Faber, Acme, Thrift and Government  ==");
@@ -48,6 +57,12 @@ async function init(){
         }
     }
 
+}
+
+async function connectWithGovernment1(){
+
+    _init();
+
     stewardWallet = await indy.openWallet(stewardWalletConfig, stewardWalletCredentials);
 
     console.log("\"Sovrin Steward\" -> Create and store in Wallet DID from seed");
@@ -57,9 +72,6 @@ async function init(){
 
     [stewardDid, stewardKey] = await indy.createAndStoreMyDid(stewardWallet, stewardDidInfo);
 
-}
-
-async function connectWithGovernment1(){
     console.log("==============================");
     console.log("== Getting Trust Anchor credentials - Government Onboarding  ==");
     console.log("------------------------------");
@@ -69,7 +81,7 @@ async function connectWithGovernment1(){
     let [stewardGovernmentDid, stewardGovernmentKey] = await indy.createAndStoreMyDid(stewardWallet, {});
 
     console.log(`\"Steward\" > Send Nym to Ledger for \"Steward Goverment\" DID`);
-    await sendNym(poolHandle, stewardWallet, stewardDid, stewardGovernmentDid, stewardGovernmentKey, null);
+    await util.sendNym(poolHandle, stewardWallet, stewardDid, stewardGovernmentDid, stewardGovernmentKey, null);
 
     console.log(`\"Steward\" > Send connection request to Goverment with \"Steward Goverment\" DID and nonce`);
     let connectionRequest = {
@@ -77,6 +89,7 @@ async function connectWithGovernment1(){
         nonce: 123456789
     };
 
+    return JSON.stringify(connectionRequest);
     //보냈다고 친다.
 }
 

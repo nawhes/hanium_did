@@ -25,7 +25,7 @@ async function run() {
     await indy.setProtocolVersion(2)
 
     let poolHandle = await indy.openPoolLedger(poolName);
-
+    
     console.log("==============================");
     console.log("=== Getting Trust Anchor credentials for Faber, Acme, Thrift and Government  ==");
     console.log("------------------------------");
