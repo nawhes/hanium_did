@@ -12,8 +12,12 @@ let governmentDid, governmentKey;
 let governmentStewardDid, governmentStewardKey;
 let governmentTranscriptCredDefId, governmentTranscriptCredDefJson;
 
+let stewardGovernmentVerkey;
+
+let poolHandle;
+
 async function init(){
-    console.log('government is ready!');
+    console.log(' # government is ready!');
     
     console.log(`Open Pool Ledger: ${poolName}`);
     let poolGenesisTxnPath = await util.getPoolGenesisTxnPath(poolName);
@@ -31,11 +35,22 @@ async function init(){
 
     await indy.setProtocolVersion(2)
 
+   if (!governmentWallet) {
+        console.log(`\"Government\" > Create wallet"`);
+        try {
+            await indy.createWallet(governmentWalletConfig, governmentWalletCredentials)
+        } catch(e) {
+            if(e.message !== "WalletAlreadyExistsError") {
+                throw e;
+            }
+        }
+        governmentWallet = await indy.openWallet(governmentWalletConfig, governmentWalletCredentials);
+    }
 }
 
 
 async function connectWithAlice1(){
-    let poolHandle = indy.openPoolLedger(poolName);
+    poolHandle = await indy.openPoolLedger(poolName);
 
     console.log(`\"alice\" > Create and store in Wallet \"alice Government\" DID`);
     let [aliceGovernmentDid, aliceGovernmentKey] = await indy.createAndStoreMyDid(aliceWallet, {});
@@ -98,36 +113,15 @@ async function connectWithAlice1_1(){
 // }
 
 
-
-async function connectWithSteward1(){
-
-    console.log("==============================");
-    console.log("== Getting Trust Anchor credentials - Government Onboarding  ==");
-    console.log("------------------------------");
-
-    //받았다고 친다.
-    let connectionRequest = {
-        did: stewardGovernmentDid,
-        nonce: 123456789
-    };
-
-    if (!governmentWallet) {
-        console.log(`\"Government\" > Create wallet"`);
-        try {
-            await indy.createWallet(governmentWalletConfig, governmentWalletCredentials)
-        } catch(e) {
-            if(e.message !== "WalletAlreadyExistsError") {
-                throw e;
-            }
-        }
-        governmentWallet = await indy.openWallet(governmentWalletConfig, governmentWalletCredentials);
-    }
-
+async function connectWithSteward1(request){
+	let connectionRequest = JSON.parse(request);
+	poolHandle = await indy.openPoolLedger(poolName);
+    
     console.log(`\"Government\" > Create and store in Wallet \"Government Steward\" DID`);
     [governmentStewardDid, governmentStewardKey] = await indy.createAndStoreMyDid(governmentWallet, {});
 
     console.log(`\"Government\" > Get key for did from \"Steward\" connection request`);
-    let stewardGovernmentVerkey = await indy.keyForDid(poolHandle, governmentWallet, connectionRequest.did);
+    stewardGovernmentVerkey = await indy.keyForDid(poolHandle, governmentWallet, connectionRequest.did);
 
     console.log(`\"Government\" > Anoncrypt connection response for \"Steward\" with \"Government Steward\" DID, verkey and nonce`);
     let connectionResponse = JSON.stringify({
@@ -136,17 +130,13 @@ async function connectWithSteward1(){
         'nonce': connectionRequest['nonce']
     });
     let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(stewardGovernmentVerkey, Buffer.from(connectionResponse, 'utf8'));
-
     console.log(`\"Government\" > Send anoncrypted connection response to \"Steward\"`);
-
-    //보냈다고 친다.
+	console.log(` Response. ${anoncryptedConnectionResponse}`);
+	
+	return anoncryptedConnectionResponse;
 }
 
 async function connectWithSteward2(){
-    console.log("==============================");
-    console.log("== Getting Trust Anchor credentials - Government getting Verinym  ==");
-    console.log("------------------------------");
-
     console.log(`\"Government\" > Create and store in Wallet \"Government\" new DID"`);
     [governmentDid, governmentKey] = await indy.createAndStoreMyDid(governmentWallet, {});
 
@@ -155,19 +145,18 @@ async function connectWithSteward2(){
         'did': governmentDid,
         'verkey': governmentKey
     });
-    let authcryptedDidInfo = await indy.cryptoAuthCrypt(governmentWallet, governmentStewardKey, stewardGovernmentKey, Buffer.from(didInfoJson, 'utf8'));
+    let authcryptedDidInfo = await indy.cryptoAuthCrypt(governmentWallet, governmentStewardKey, stewardGovernmentVerkey, Buffer.from(didInfoJson, 'utf8'));
 
     console.log(`\"Government\" > Send authcrypted \"Government DID info\" to Steward`);
 
+	return authcryptedDidInfo;
     //보냈다고 친다.
 }
 
 async function governmentSchema(){
-
     console.log("==============================");
     console.log("=== Credential Schemas Setup ==");
     console.log("------------------------------");
-
 
     console.log("\"Government\" -> Create \"Transcript\" Schema");
     let [transcriptSchemaId, transcriptSchema] = await indy.issuerCreateSchema(governmentDid, 'Transcript', '1.2',

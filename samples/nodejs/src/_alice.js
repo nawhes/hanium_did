@@ -11,7 +11,7 @@ let aliceWalletCredentials = {'key': 'alice_key'}
 let aliceWallet;
 
 async function init(){
-    console.log('alice is ready!');
+    console.log(' # alice is ready!');
     
     let poolName = 'pool2';
     console.log(`Open Pool Ledger: ${poolName}`);
@@ -42,8 +42,6 @@ async function init(){
         }
         aliceWallet = await indy.openWallet(aliceWalletConfig, aliceWalletCredentials);
     }
-
-    return;
 }
 
 async function connectWithGovernment1(){
@@ -56,8 +54,6 @@ async function connectWithGovernment1(){
         did: fromToDid,
         nonce: 123456789
     };
-
-    aliceWallet = await indy.openWallet(aliceWalletConfig, aliceWalletCredentials);
 
     console.log(`\"alice\" > Create and salicere in Wallet \"aliceSteward\" DID`);
     let [aliceStewardDid, aliceStewardKey] = await indy.createAndSalicereMyDid(aliceWallet, {});
