@@ -27,7 +27,9 @@
   "homepage": "https://github.com/hyperledger/indy-sdk#readme",
   "dependencies": {
     "cryptiles": "^4.1.1",
+    "express": "$^4.17.1",
     "home-dir": "^1.0.0",
+    "indy-sdk": "^1.14.1-dev-1425",
     "mkdirp": "^0.5.1"
   }
 }
