@@ -69,7 +69,7 @@ async function connectWithGovernment1(){
         nonce: 123456789
     };
 
-	var ret = JSON.stringify(connectionRequest);
+	let ret = JSON.stringify(connectionRequest);
 	console.log(` Request . ${ret}`);
     return ret;
 }

@@ -33,20 +33,19 @@ async function main(){
 				await government.init();
 				break;
 			case 'onboarding':
-				let request;
+				let request, response;
 				request = await steward.connectWithGovernment1();
-				let response, governmentStewardDid;
 				response = await government.connectWithSteward1(request);
 				await steward.connectWithGovernment1_1(response);
 				request = await government.connectWithSteward2();
 				await steward.connectWithGovernment2(request);
 
+				request = await government.connectWithAlice1();
+				response = await alice.connectWithGovernment1(request);
+				await government.connectWithAlice1_1(response);
 				break;
 			case 'schema':
 				await government.governmentSchema();
-			case 'getverinym':
-
-				break;
 			case 'close':
 				await steward.close();
 				await alice.close();

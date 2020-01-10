@@ -4,16 +4,24 @@ const indy = require('indy-sdk');
 const util = require('./util');
 const assert = require('assert');
 
+const sender = 'alice';
+let receiver;
+
+let poolName = 'pool2';
 let poolHandle;
 
+let aliceWallet;
 let aliceWalletConfig = {'id': 'aliceWallet'}
 let aliceWalletCredentials = {'key': 'alice_key'}
-let aliceWallet;
+
+let aliceGovernmentDid, aliceGovernmentKey;
+let governmentAliceVerkey;
+
+let connectionRequest;
 
 async function init(){
     console.log(' # alice is ready!');
     
-    let poolName = 'pool2';
     console.log(`Open Pool Ledger: ${poolName}`);
     let poolGenesisTxnPath = await util.getPoolGenesisTxnPath(poolName);
     let poolConfig = {
@@ -28,7 +36,6 @@ async function init(){
     }
 
     await indy.setProtocolVersion(2)
-
     poolHandle = await indy.openPoolLedger(poolName);
 
     if (!aliceWallet) {
@@ -44,55 +51,28 @@ async function init(){
     }
 }
 
-async function connectWithGovernment1(){
-    console.log("==============================");
-    console.log("== Getting Trust Anchor credentials - Government Onboarding  ==");
-    console.log("------------------------------");
+async function connectWithGovernment1(request){
+    connectionRequest = JSON.parse(request);
+    receiver = 'government';
 
-    //받았다고 친다.
-    let connectionRequest = {
-        did: fromToDid,
-        nonce: 123456789
-    };
+    console.log(`\"${sender}\" > Create and store in Wallet \"${sender} ${receiver}\" DID`);
+    [aliceGovernmentDid, aliceGovernmentKey] = await indy.createAndSalicereMyDid(aliceWallet, {});
 
-    console.log(`\"alice\" > Create and salicere in Wallet \"aliceSteward\" DID`);
-    let [aliceStewardDid, aliceStewardKey] = await indy.createAndSalicereMyDid(aliceWallet, {});
+    console.log(`\"${sender}\" > Get key for did from \"${receiver}\" connection request`);
+    governmentAliceVerkey = await indy.keyForDid(poolHandle, aliceWallet, connectionRequest.did);
 
-    console.log(`\"alice\" > Get key for did Steward \"Steward\" connection request`);
-    let StewardaliceVerkey = await indy.keyForDid(poolHandle, aliceWallet, connectionRequest.did);
-
-    console.log(`\"alice\" > Anoncrypt connection response for \"Steward\" with \"alice Steward\" DID, verkey and nonce`);
+    console.log(`\"${sender}\" > Anoncrypt connection response for \"${receiver}\" with \"${sender} ${receiver}\" DID, verkey and nonce`);
     let connectionResponse = JSON.stringify({
-        'did': aliceStewardDid,
-        'verkey': aliceStewardKey,
+        'did': aliceGovernmentDid,
+        'verkey': aliceGovernmentKey,
         'nonce': connectionRequest['nonce']
     });
-    let anoncryptedConnectionResponse = await indy.crypaliceAnonCrypt(StewardaliceVerkey, Buffer.from(connectionResponse, 'utf8'));
-
-    console.log(`\"alice\" > Send anoncrypted connection response alice \"Steward\"`);
-
-    //보냈다고 친다.
+    let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(governmentAliceVerkey, Buffer.from(connectionResponse, 'utf8'));
+    console.log(`\"${sender}\" > Send anoncrypted connection response to \"${receiver}\"`);
+	console.log(` Response. ${anoncryptedConnectionResponse}`);
+	
+	return anoncryptedConnectionResponse;
 }
-
-// async function connectWithGovernment2(){
-//     console.log("==============================");
-//     console.log("== Getting Trust Anchor credentials - Government getting Verinym  ==");
-//     console.log("------------------------------");
-
-//     console.log(`\"alice\" > Create and salicere in Wallet \"alice\" new DID"`);
-//     let [aliceDid, aliceKey] = await indy.createAndSalicereMyDid(aliceWallet, {});
-
-//     console.log(`\"alice\" > Authcrypt \"alice DID info\" for \"Steward\"`);
-//     let didInfoJson = JSON.stringify({
-//         'did': aliceDid,
-//         'verkey': aliceKey
-//     });
-//     let authcryptedDidInfo = await indy.crypaliceAuthCrypt(aliceWallet, aliceStewardKey, StewardaliceKey, Buffer.from(didInfoJson, 'utf8'));
-
-//     console.log(`\"alice\" > Send authcrypted \"alice DID info\" alice Steward`);
-
-//     //보냈다고 친다.
-// }
 
 async function connectWithGovernment(){
 
@@ -100,7 +80,7 @@ async function connectWithGovernment(){
     console.log("== Getting Transcript with Government - Getting Transcript Credential ==");
     console.log("------------------------------");
 
-    console.log("\"Alice\" -> Authdecrypted \"Transcript\" Credential Offer Government Government");
+    console.log(`\"${sender}\" -> Authdecrypted \"Transcript\" Credential Offer Government Government`);
     let [GovernmentAliceVerkey, authdecryptedTranscriptCredOfferJson, authdecryptedTranscriptCredOffer] = await util.authDecrypt(aliceWallet, aliceGovernmentKey, authcryptedTranscriptCredOffer);
 
     console.log("\"Alice\" -> Create and salicere \"Alice\" Master Secret in Wallet");
@@ -139,6 +119,6 @@ async function close(){
 
 module.exports = {
     init,
-    connectWithGovernment,
+    connectWithGovernment1,
     close
 }
