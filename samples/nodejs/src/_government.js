@@ -15,9 +15,9 @@ let governmentWalletConfig = {'id': 'governmentWallet'};
 let governmentWalletCredentials = {'key': 'government_key'};
 let governmentDid, governmentKey;
 let governmentStewardDid, governmentStewardKey;
-let stewardGovernmentVerkey;
+let stewardGovernmentVerkey, aliceGovernmentVerkey;
 
-let governmentAliceDid, governmentAliceKey;
+let governmentAliceDid, governmentAliceKey, aliceGovernmentDid;
 
 let connectionRequest;
 
@@ -100,14 +100,14 @@ async function connectWithSteward2(){
 
 async function connectWithAlice1(){
     receiver = 'alice';
-
+/*
     console.log(`\"${sender}\" -> Create and store in Wallet DID from seed`);
     let governmentDidInfo = {
         'seed': '000000000000000000000000Government1'
     };
 
     [governmentDid, governmentKey] = await indy.createAndStoreMyDid(governmentWallet, governmentDidInfo)
-
+*/
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender} ${receiver}\" DID`);
     [governmentAliceDid, governmentAliceKey] = await indy.createAndStoreMyDid(governmentWallet, {});
 
@@ -121,7 +121,7 @@ async function connectWithAlice1(){
     };
 
     let ret = JSON.stringify(connectionRequest);
-	console.log(` Request . ${ret}`);
+    console.log(` Request . ${ret}`);
     return ret;
 }
 
@@ -160,20 +160,12 @@ async function connectWithAlice1_1(anoncryptedConnectionResponse){
 
 
 async function governmentSchema(){
-    console.log("==============================");
-    console.log("=== Credential Schemas Setup ==");
-    console.log("------------------------------");
-
-    console.log(`\`"${sender}\" -> Create \"Transcript\" Schema`);
+    console.log(`\"${sender}\" -> Create \"Transcript\" Schema`);
     let [transcriptSchemaId, transcriptSchema] = await indy.issuerCreateSchema(governmentDid, 'Transcript', '1.2',
         ['first_name', 'last_name', 'degree', 'status',
             'year', 'average', 'ssn']);
-    console.log("\"Government\" -> Send \"Transcript\" Schema to Ledger");
+    console.log(`\"${sender}\" -> Send \"Transcript\" Schema to Ledger`);
     await util.sendSchema(poolHandle, governmentWallet, governmentDid, transcriptSchema);
-
-    console.log("==============================");
-    console.log("=== Government Credential Definition Setup ==");
-    console.log("------------------------------");
 
     console.log(`\"${sender}\" -> Get \"Transcript\" Schema from Ledger`);
     [, transcriptSchema] = await util.getSchema(poolHandle, governmentDid, transcriptSchemaId);
@@ -185,84 +177,50 @@ async function governmentSchema(){
     await util.sendCredDef(poolHandle, governmentWallet, governmentDid, governmentTranscriptCredDefJson);
 }
 
-// async function connectWithAlice(){
-//     console.log("==============================");
-//     console.log("=== Getting Transcript with Government ==");
-//     console.log("==============================");
-//     console.log("== Getting Transcript with Government - Onboarding ==");
-//     console.log("------------------------------");
+async function createCredentialOffer(){
+     console.log(`\"${sender}\" -> Create \"Transcript\" Credential Offer for Alice`);
+     let transcriptCredOfferJson = await indy.issuerCreateCredentialOffer(governmentWallet, governmentTranscriptCredDefId);
+     
+     console.log(`\"${sender}\" -> Get key for Alice did`);
+     aliceGovernmentVerkey = await indy.keyForDid(poolHandle, governmentWallet, aliceGovernmentDid);
 
-//     console.log(`\"Government\" > Create and store in Wallet \"Government Alice\" DID`);
-//     let [governmentAliceDid, governmentAliceKey] = await indy.createAndStoreMyDid(governmentWallet, {});
+     console.log(`\"${sender}\" -> Authcrypt \"Transcript\" Credential Offer for Alice`);
+     let authcryptedTranscriptCredOffer = await indy.cryptoAuthCrypt(governmentWallet, governmentAliceKey, aliceGovernmentVerkey, Buffer.from(JSON.stringify(transcriptCredOfferJson), 'utf8'));
 
-//     console.log(`\"Government\" > Send Nym to Ledger for \"Government Alice\" DID`);
-//     await sendNym(poolHandle, governmentWallet, governmentDid, governmentAliceDid, governmentAliceKey, null);
+     console.log("\"Government\" -> Send authcrypted \"Transcript\" Credential Offer to Alice");
+     console.log(` Offer . ${authcryptedTranscriptCredOffer}`);
+     return authcryptedTranscriptCredOffer;
+}
 
-//     console.log(`\"Government\" > Send connection request to Alice with \"Government Alice\" DID and nonce`);
-//     let connectionRequest = {
-//         did: governmentAliceDid,
-//         nonce: 123456789
-//     };
+async function createCredential(authcryptedTanscriptCredRequest){
+     receiver = "alice";
 
-//     //
+     console.log(`\"${sender}\" -> Authdecrypt \"Transcript\" Credential Request from ${receiver}`);
+     let authdecryptedTranscriptCredRequestJson;
+     [aliceGovernmentVerkey, authdecryptedTranscriptCredRequestJson] = await util.authDecrypt(governmentWallet, governmentAliceKey, authcryptedTranscriptCredRequest);
 
-//     console.log(`\"Government\" > Anondecrypt connection response from \"Alice\"`);
-//     let decryptedConnectionResponse = JSON.parse(Buffer.from(await indy.cryptoAnonDecrypt(governmentWallet, governmentAliceKey, anoncryptedConnectionResponse)));
+     console.log(`\"${sender}\" -> Create \"Transcript\" Credential for ${receiver}`);
+     // note that encoding is not standardized by Indy except that 32-bit integers are encoded as themselves. IS-786
+     let transcriptCredValues = {
+         "first_name": {"raw": "Alice", "encoded": "1139481716457488690172217916278103335"},
+         "last_name": {"raw": "Garcia", "encoded": "5321642780241790123587902456789123452"},
+         "degree": {"raw": "Bachelor of Science, Marketing", "encoded": "12434523576212321"},
+         "status": {"raw": "graduated", "encoded": "2213454313412354"},
+         "ssn": {"raw": "123-45-6789", "encoded": "3124141231422543541"},
+         "year": {"raw": "2015", "encoded": "2015"},
+         "average": {"raw": "5", "encoded": "5"}
+     };
 
-//     console.log(`\"Government\" > Authenticates \"Alice\" by comparision of Nonce`);
-//     if (connectionRequest['nonce'] !== decryptedConnectionResponse['nonce']) {
-//         throw Error("nonces don't match!");
-//     }
+     let [transcriptCredJson] = await indy.issuerCreateCredential(governmentWallet, transcriptCredOfferJson, authdecryptedTranscriptCredRequestJson, transcriptCredValues, null, -1);
 
-//     console.log(`\"Government\" > Send Nym to Ledger for \"Alice Government\" DID`);
-//     await sendNym(poolHandle, governmentWallet, governmentDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
+     console.log(`\"${sender}\" -> Authcrypt \"Transcript\" Credential for ${receiver}`);
+     let authcryptedTranscriptCredJson = await indy.cryptoAuthCrypt(governmentWallet, governmentAliceKey, aliceGovernmentVerkey, Buffer.from(JSON.stringify(transcriptCredJson),'utf8'));
 
+     console.log(`\"${sender}\" -> Send authcrypted \"Transcript\" Credential to ${receiver}`);
+     console.log(` TranscriptCredential . ${authcryptedTranscriptCredJson}`);
 
-
-//     console.log("==============================");
-//     console.log("== Getting Transcript with Government - Getting Transcript Credential ==");
-//     console.log("------------------------------");
-
-//     console.log("\"Government\" -> Create \"Transcript\" Credential Offer for Alice");
-//     let transcriptCredOfferJson = await indy.issuerCreateCredentialOffer(governmentWallet, governmentTranscriptCredDefId);
-
-//     console.log("\"Government\" -> Get key for Alice did");
-//     let aliceGovernmentVerkey = await indy.keyForDid(poolHandle, governmentWallet, governmentAliceConnectionResponse['did']);
-
-//     console.log("\"Government\" -> Authcrypt \"Transcript\" Credential Offer for Alice");
-//     let authcryptedTranscriptCredOffer = await indy.cryptoAuthCrypt(governmentWallet, governmentAliceKey, aliceGovernmentVerkey, Buffer.from(JSON.stringify(transcriptCredOfferJson),'utf8'));
-
-//     console.log("\"Government\" -> Send authcrypted \"Transcript\" Credential Offer to Alice");
-
-
-//     ////
-
-
-//     console.log("\"Government\" -> Authdecrypt \"Transcript\" Credential Request from Alice");
-//     let authdecryptedTranscriptCredRequestJson;
-//     [aliceGovernmentVerkey, authdecryptedTranscriptCredRequestJson] = await util.authDecrypt(governmentWallet, governmentAliceKey, authcryptedTranscriptCredRequest);
-
-//     console.log("\"Government\" -> Create \"Transcript\" Credential for Alice");
-//     // note that encoding is not standardized by Indy except that 32-bit integers are encoded as themselves. IS-786
-//     let transcriptCredValues = {
-//         "first_name": {"raw": "Alice", "encoded": "1139481716457488690172217916278103335"},
-//         "last_name": {"raw": "Garcia", "encoded": "5321642780241790123587902456789123452"},
-//         "degree": {"raw": "Bachelor of Science, Marketing", "encoded": "12434523576212321"},
-//         "status": {"raw": "graduated", "encoded": "2213454313412354"},
-//         "ssn": {"raw": "123-45-6789", "encoded": "3124141231422543541"},
-//         "year": {"raw": "2015", "encoded": "2015"},
-//         "average": {"raw": "5", "encoded": "5"}
-//     };
-
-//     let [transcriptCredJson] = await indy.issuerCreateCredential(governmentWallet, transcriptCredOfferJson, authdecryptedTranscriptCredRequestJson, transcriptCredValues, null, -1);
-
-//     console.log("\"Government\" -> Authcrypt \"Transcript\" Credential for Alice");
-//     let authcryptedTranscriptCredJson = await indy.cryptoAuthCrypt(governmentWallet, governmentAliceKey, aliceGovernmentVerkey, Buffer.from(JSON.stringify(transcriptCredJson),'utf8'));
-
-//     console.log("\"Government\" -> Send authcrypted \"Transcript\" Credential to Alice");
-
-
-// }
+     return authcryptedTranscriptCredJson;
+}
 
 async function close(){
     console.log(`\"${sender}\" -> Close and Delete wallet`);
@@ -277,5 +235,7 @@ module.exports = {
     governmentSchema,
     connectWithAlice1,
     connectWithAlice1_1,
+    createCredentialOffer,
+    createCredential,
     close
 }

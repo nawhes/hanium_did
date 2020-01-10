@@ -17,6 +17,7 @@ let aliceWalletCredentials = {'key': 'alice_key'}
 let aliceGovernmentDid, aliceGovernmentKey;
 let governmentAliceVerkey;
 
+let GovernmentTranscriptCredDefId, GovernmentTranscriptCredDef, transcriptCredRequestMetadataJson;
 let connectionRequest;
 
 async function init(){
@@ -56,7 +57,7 @@ async function connectWithGovernment1(request){
     receiver = 'government';
 
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender} ${receiver}\" DID`);
-    [aliceGovernmentDid, aliceGovernmentKey] = await indy.createAndSalicereMyDid(aliceWallet, {});
+    [aliceGovernmentDid, aliceGovernmentKey] = await indy.createAndStoreMyDid(aliceWallet, {});
 
     console.log(`\"${sender}\" > Get key for did from \"${receiver}\" connection request`);
     governmentAliceVerkey = await indy.keyForDid(poolHandle, aliceWallet, connectionRequest.did);
@@ -74,45 +75,42 @@ async function connectWithGovernment1(request){
 	return anoncryptedConnectionResponse;
 }
 
-async function connectWithGovernment(){
-
-    console.log("==============================");
-    console.log("== Getting Transcript with Government - Getting Transcript Credential ==");
-    console.log("------------------------------");
+async function createMasterSecret(authcryptedTranscriptCredOffer){
+    receiver = "government";
 
     console.log(`\"${sender}\" -> Authdecrypted \"Transcript\" Credential Offer Government Government`);
-    let [GovernmentAliceVerkey, authdecryptedTranscriptCredOfferJson, authdecryptedTranscriptCredOffer] = await util.authDecrypt(aliceWallet, aliceGovernmentKey, authcryptedTranscriptCredOffer);
+    let [governmentAliceVerkey, authdecryptedTranscriptCredOfferJson, authdecryptedTranscriptCredOffer] = await util.authDecrypt(aliceWallet, aliceGovernmentKey, authcryptedTranscriptCredOffer);
 
-    console.log("\"Alice\" -> Create and salicere \"Alice\" Master Secret in Wallet");
+    console.log(`\"${sender}\" -> Create and store \"${sender}\" Master Secret in Wallet`);
     let aliceMasterSecretId = await indy.proverCreateMasterSecret(aliceWallet, null);
 
-    console.log("\"Alice\" -> Get \"Government Transcript\" Credential Definition Government Ledger");
-    let GovernmentTranscriptCredDef;
+    console.log(`\"${sender}\" -> Get \"Government Transcript\" Credential Definition from Ledger`);
     [GovernmentTranscriptCredDefId, GovernmentTranscriptCredDef] = await util.getCredDef(poolHandle, aliceGovernmentDid, authdecryptedTranscriptCredOffer['cred_def_id']);
 
-    console.log("\"Alice\" -> Create \"Transcript\" Credential Request for Government");
+    console.log(`\"${sender}\" -> Create \"Transcript\" Credential Request for ${receiver}`);
     let [transcriptCredRequestJson, transcriptCredRequestMetadataJson] = await indy.proverCreateCredentialReq(aliceWallet, aliceGovernmentDid, authdecryptedTranscriptCredOfferJson, GovernmentTranscriptCredDef, aliceMasterSecretId);
 
-    console.log("\"Alice\" -> Authcrypt \"Transcript\" Credential Request for Government");
-    let authcryptedTranscriptCredRequest = await indy.crypaliceAuthCrypt(aliceWallet, aliceGovernmentKey, GovernmentAliceVerkey, Buffer.from(JSON.stringify(transcriptCredRequestJson),'utf8'));
+    console.log(`\"${sender}\" -> Authcrypt \"Transcript\" Credential Request for ${receiver}`);
+    let authcryptedTranscriptCredRequest = await indy.cryptoAuthCrypt(aliceWallet, aliceGovernmentKey, governmentAliceVerkey, Buffer.from(JSON.stringify(transcriptCredRequestJson),'utf8'));
 
-    console.log("\"Alice\" -> Send authcrypted \"Transcript\" Credential Request alice Government");
+    console.log(`\"${sender}\" -> Send authcrypted \"Transcript\" Credential Request to ${receiver}`);
+    console.log(` Request . ${authcryptedTranscriptCredRequest}`);
+    return authcryptedTranscriptCredRequest;
+}
 
-    //
-
-
-    console.log("\"Alice\" -> Authdecrypted \"Transcript\" Credential Government Government");
+async function storeCredential(authcryptedTranscriptCredJson){
+    console.log(`\"${sender}\" -> Authdecrypted \"Transcript\" Credential from Government`);
     let [, authdecryptedTranscriptCredJson] = await util.authDecrypt(aliceWallet, aliceGovernmentKey, authcryptedTranscriptCredJson);
 
-    console.log("\"Alice\" -> Salicere \"Transcript\" Credential Government Government");
-    await indy.proverSalicereCredential(aliceWallet, null, transcriptCredRequestMetadataJson,
+    console.log(`\"${sender}\" -> Store \"Transcript\" Credential from Government`);
+    await indy.proverStoreCredential(aliceWallet, null, transcriptCredRequestMetadataJson,
         authdecryptedTranscriptCredJson, GovernmentTranscriptCredDef, null);
 
 
 }
 
 async function close(){
-    console.log("\"Alice\" -> Close and Delete wallet");
+    console.log(`\"${alice}\" -> Close and Delete wallet`);
     await indy.closeWallet(aliceWallet);
     await indy.deleteWallet(aliceWalletConfig, aliceWalletCredentials);
 }
@@ -120,5 +118,7 @@ async function close(){
 module.exports = {
     init,
     connectWithGovernment1,
+    createMasterSecret,
+    storeCredential,
     close
 }

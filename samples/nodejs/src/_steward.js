@@ -106,7 +106,7 @@ async function connectWithGovernment2(authcryptedDidInfo){
 }
 
 async function close(){
-    console.log(" \"Sovrin Steward\" -> Close and Delete wallet");
+    console.log(`\"${sender}\" -> Close and Delete wallet`);
     await indy.closeWallet(stewardWallet);
     await indy.deleteWallet(stewardWalletConfig, stewardWalletCredentials);
 }

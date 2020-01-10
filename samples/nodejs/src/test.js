@@ -23,9 +23,15 @@ function test(){
 }
 
 async function main(){
+	var i = {
+		'a':1,
+		'b':2
+	}
+	console.log(Buffer.from(JSON.stringify(i,'uft8')));
 	let ans;
 	while(1){
 		ans = await test();
+		let request, response;
 		switch(ans){
 			case 'init':
 				await steward.init();
@@ -33,7 +39,6 @@ async function main(){
 				await government.init();
 				break;
 			case 'onboarding':
-				let request, response;
 				request = await steward.connectWithGovernment1();
 				response = await government.connectWithSteward1(request);
 				await steward.connectWithGovernment1_1(response);
@@ -46,12 +51,17 @@ async function main(){
 				break;
 			case 'schema':
 				await government.governmentSchema();
+				break;
+			case 'run':
+				request = await government.createCredentialOffer();
+				response = await alice.createMasterSecret(request);
+				response = await government.createCredential(response);
+				await alice.storeCredential(response);
+				break;
 			case 'close':
 				await steward.close();
 				await alice.close();
 				await government.close();
-			default:
-				return;
 		}
 	}
 }
