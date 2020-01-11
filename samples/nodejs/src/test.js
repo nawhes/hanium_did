@@ -23,11 +23,6 @@ function test(){
 }
 
 async function main(){
-	var i = {
-		'a':1,
-		'b':2
-	}
-	console.log(Buffer.from(JSON.stringify(i,'uft8')));
 	let ans;
 	while(1){
 		ans = await test();
