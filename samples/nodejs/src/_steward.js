@@ -5,15 +5,15 @@ const util = require('./util');
 const assert = require('assert');
 
 
-let poolName = 'pool1';
+let poolName = 'poolSteward';
 let poolHandle;
 
 let stewardWallet;
-let stewardWalletConfig = {'id': 'stewardWalletName'}
-let stewardWalletCredentials = {'key': 'steward_key'}
+let stewardWalletConfig = {'id': 'stewardWallet'}
+let stewardWalletCredentials = {'key': 'stewardKey'}
 let stewardDid, stewardKey;
-let stewardGovernmentDid, stewardGovernmentKey;
-let governmentStewardDid;
+let stewardGovDid, stewardGovKey;
+let govStewardDid;
 
 let connectionRequest;
 
@@ -48,8 +48,7 @@ async function init(){
 	stewardWallet = await indy.openWallet(stewardWalletConfig, stewardWalletCredentials);
 }
 
-
-async function connectWithGovernment1(){
+async function connectWithGov1(){
     console.log("\"Steward\" -> Create and store in Wallet DID from seed");
     let stewardDidInfo = {
         'seed': '000000000000000000000000Steward1'
@@ -58,14 +57,14 @@ async function connectWithGovernment1(){
     [stewardDid, stewardKey] = await indy.createAndStoreMyDid(stewardWallet, stewardDidInfo);
 
     console.log(`\"Steward\" > Create and store in Wallet \"Steward Goverment\" DID`);
-    [stewardGovernmentDid, stewardGovernmentKey] = await indy.createAndStoreMyDid(stewardWallet, {});
+    [stewardGovDid, stewardGovKey] = await indy.createAndStoreMyDid(stewardWallet, {});
 
     console.log(`\"Steward\" > Send Nym to Ledger for \"Steward Goverment\" DID`);
-    await util.sendNym(poolHandle, stewardWallet, stewardDid, stewardGovernmentDid, stewardGovernmentKey, null);
+    await util.sendNym(poolHandle, stewardWallet, stewardDid, stewardGovDid, stewardGovKey, null);
 
     console.log(`\"Steward\" > Send connection request to Goverment with \"Steward Goverment\" DID and nonce`);
     connectionRequest = {
-        did: stewardGovernmentDid,
+        did: stewardGovDid,
         nonce: 123456789
     };
 
@@ -74,29 +73,29 @@ async function connectWithGovernment1(){
     return ret;
 }
 
-async function connectWithGovernment1_1(anoncryptedConnectionResponse){
-    console.log(`\"Steward\" > Anondecrypt connection response from \"Government\"`);
-    let decryptedConnectionResponse = JSON.parse(Buffer.from(await indy.cryptoAnonDecrypt(stewardWallet, stewardGovernmentKey, anoncryptedConnectionResponse)));
+async function connectWithGov1_1(anoncryptedConnectionResponse){
+    console.log(`\"Steward\" > Anondecrypt connection response from \"Gov\"`);
+    let decryptedConnectionResponse = JSON.parse(Buffer.from(await indy.cryptoAnonDecrypt(stewardWallet, stewardGovKey, anoncryptedConnectionResponse)));
 
     console.log(`\"Steward\" > Authenticates \"Goverment\" by comparision of Nonce`);
     if (connectionRequest['nonce'] !== decryptedConnectionResponse['nonce']) {
         throw Error("nonces don't match!");
     }
 
-    governmentStewardDid = decryptedConnectionResponse['did'];
+    govStewardDid = decryptedConnectionResponse['did'];
 
     console.log(`\"Steward\" > Send Nym to Ledger for \"Goverment Steward\" DID`);
     await util.sendNym(poolHandle, stewardWallet, stewardDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
 }
 
-async function connectWithGovernment2(authcryptedDidInfo){
+async function connectWithGov2(authcryptedDidInfo){
     console.log(`\"Steward\" > Authdecrypted \"Goverment DID info\" from Goverment`);
     let [senderVerkey, authdecryptedDidInfo] =
-        await indy.cryptoAuthDecrypt(stewardWallet, stewardGovernmentKey, Buffer.from(authcryptedDidInfo));
+        await indy.cryptoAuthDecrypt(stewardWallet, stewardGovKey, Buffer.from(authcryptedDidInfo));
 
     let authdecryptedDidInfoJson = JSON.parse(Buffer.from(authdecryptedDidInfo));
     console.log(`\"Steward\" > Authenticate Goverment by comparision of Verkeys`);
-    let retrievedVerkey = await indy.keyForDid(poolHandle, stewardWallet, governmentStewardDid);
+    let retrievedVerkey = await indy.keyForDid(poolHandle, stewardWallet, govStewardDid);
     if (senderVerkey !== retrievedVerkey) {
         throw Error("Verkey is not the same");
     }
@@ -111,11 +110,10 @@ async function close(){
     await indy.deleteWallet(stewardWalletConfig, stewardWalletCredentials);
 }
 
-
 module.exports = {
     init,
-    connectWithGovernment1,
-    connectWithGovernment1_1,
-    connectWithGovernment2,
+    connectWithGov1,
+    connectWithGov1_1,
+    connectWithGov2,
     close
 }
