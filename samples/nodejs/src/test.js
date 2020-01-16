@@ -72,22 +72,21 @@ async function main(){
 				break;
 			case 'receipt':
 				request = await hbank.connectWithAlice1();
-				response = await alice.connectWithGov1(request);
+				response = await alice.connectWithHbank1(request);
 				await hbank.connectWithAlice1_1(response);
-				request = await hbank.createCredentialOffer();
-				response = await alice.createMasterSecret(request);
-				response = await hbank.createCredential(response);
-				await alice.storeCredential(response);
+				request = await hbank.createProofRequest();
+				response = await alice.createProof(request);
+				response = await hbank.verifyProof();
 				break;
-			case 'order':
-				request = await hstore.connectWithAlice1();
-				response = await alice.connectWithGov1(request);
-				await hstore.connectWithAlice1_1(response);
-				request = await hstore.createCredentialOffer();
-				response = await alice.createMasterSecret(request);
-				response = await hstore.createCredential(response);
-				await alice.storeCredential(response);
-				break;
+			// case 'order':
+			// 	request = await hstore.connectWithAlice1();
+			// 	response = await alice.connectWithGov1(request);
+			// 	await hstore.connectWithAlice1_1(response);
+			// 	request = await hstore.createCredentialOffer();
+			// 	response = await alice.createMasterSecret(request);
+			// 	response = await hstore.createCredential(response);
+			// 	await alice.storeCredential(response);
+			// 	break;
 			case 'close':
 				await steward.close();
 				await gov.close();

@@ -157,3 +157,15 @@ async function close(){
     await indy.closeWallet(hstoreWallet);
     await indy.deleteWallet(hstoreWalletConfig, hstoreWalletCredentials);
 }
+
+module.exports = {
+    init,
+    hstoreSchema,
+    connectWithGov1,
+    connectWithGov2,
+    connectWithAlice1,
+    connectWithAlice1_1,
+    // createProofRequest,
+    // verifyProof,
+    close
+}

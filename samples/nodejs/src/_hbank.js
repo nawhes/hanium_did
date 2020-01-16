@@ -23,6 +23,8 @@ let connectionRequest;
 
 let receiptCredDefId, receiptCredDefJson, receiptCredOfferJson;
 
+let receiptProofRequestJson;
+
 async function init(){
     console.log(` # ${sender} is ready!`);
     
@@ -152,8 +154,77 @@ async function connectWithAlice1_1(anoncryptedConnectionResponse){
     await util.sendNym(poolHandle, hbankWallet, hbankDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
 }
 
+async function createProofRequest(){
+    //let govIdCredDef = await indy.getCredDef(poolHandle, hbankWallet, hbankDid, )
+    let govIdCredDef = 'GovId:0.1';
+
+    let nonce = await indy.generateNonce();
+    receiptProofRequestJson = {
+        'nonce': nonce,
+        'name': 'Receipt-Application',
+        'version': '0.1',
+        'requested_attributes':{
+            'attr1_referent': {
+                'name': 'first_name',
+                'restrictions': [{'cred_def_id': govIdCredDef}]
+            },
+            'attr2_referent': {
+                'name': 'last_name',
+                'restrictions': [{'cred_def_id': govIdCredDef}]
+            },
+            'attr3_referent': {
+                'name': 'back_account'
+            },
+            'attr4_referent': {
+                'name': 'receive_account'
+            }
+        }
+    }
+
+    console.log(`\"${sender}\" -> Get key for Alice did`);
+    aliceHbankVerkey = await indy.keyForDid(poolHandle, hbankWallet, aliceHbankDid);
+
+    console.log(`\"${sender}\" -> Authcrypt \"Receipt-Application\" Proof Request for Alice`);
+    let authcryptedReceiptProofRequestJson = await indy.cryptoAuthCrypt(hbankWallet, hbankAliceKey, aliceHbankVerkey, Buffer.from(JSON.stringify(receiptProofRequestJson), 'utf8'));
+
+    console.log(`\"${sender}\" -> Send authcrypted \"Receipt-Application\" Proof Request to Alice`);
+    return authcryptedReceiptProofRequestJson;
+}
+
+async function verifyProof(authcryptedReceiptApplicationProofJson){
+    let decryptedReceiptApplicationProofJson, decryptedReceiptApplicationProof;
+    [, decryptedReceiptApplicationProofJson, decryptedReceiptApplicationProof] = await util.authDecrypt(hbankWallet, hbankAliceKey, authcryptedReceiptApplicationProofJson);
+
+    let revocRefDefsJson, revocRegsJson;
+    [schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson] = await util.verifierGetEntitiesFromLedger(poolHandle, hbankDid, decryptedReceiptApplicationProof['identifiers'], 'Hbank');
+
+    console.log("\"@@\" -> Verify \"@@\" Proof from Alice");
+    assert('Alice' === decryptedReceiptApplicationProof['requested_proof']['revealed_attrs']['attr1_referent']['raw']);
+    assert('Garcia' === decryptedReceiptApplicationProof['requested_proof']['revealed_attrs']['attr2_referent']['raw']);
+    
+    assert('7458' === decryptedReceiptApplicationProof['requested_proof']['self_attested_attrs']['attr3_referent']);
+    assert('7654' === decryptedReceiptApplicationProof['requested_proof']['self_attested_attrs']['attr4_referent']);
+    
+    assert(await indy.verifierVerifyProof(receiptProofRequestJson, decryptedReceiptApplicationProofJson, schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson));
+
+    console.log('검증됐냐?????????????????????????????\n????????????????');
+}
+
 async function close(){
     console.log(`\"${sender}\" -> Close and Delete wallet`);
     await indy.closeWallet(hbankWallet);
     await indy.deleteWallet(hbankWalletConfig, hbankWalletCredentials);
+}
+
+
+module.exports = {
+    init,
+    hbankSchema,
+    connectWithGov1,
+    connectWithGov2,
+    connectWithAlice1,
+    connectWithAlice1_1,
+    createProofRequest,
+    verifyProof,
+    close
 }

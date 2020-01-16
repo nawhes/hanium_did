@@ -152,6 +152,25 @@ async function connectWithHstore2(authcryptedDidInfo){
     await util.sendNym(poolHandle, govWallet, govDid, authdecryptedDidInfoJson['did'], authdecryptedDidInfoJson['verkey'], 'TRUST_ANCHOR');
 }
 
+async function connectWithHbank1(){
+    receiver = 'Hbank';
+    console.log(`\"${sender}\" > Create and store in Wallet \"${receiver} ${sender}\" DID`);
+    [govHbankDid, govHbankKey] = await indy.createAndStoreMyDid(govWallet, {});
+
+    console.log(`\"Steward\" > Send Nym to Ledger for \"Steward Goverment\" DID`);
+    await util.sendNym(poolHandle, govWallet, govDid, govHbankDid, govHbankKey, null);
+
+    console.log(`\"Steward\" > Send connection request to Goverment with \"Steward Goverment\" DID and nonce`);
+    connectionRequest = {
+        did: govHbankDid,
+        nonce: 123456789
+    };
+
+	let ret = JSON.stringify(connectionRequest);
+	console.log(` Request . ${ret}`);
+    return ret;
+}
+
 async function connectWithHbank1_1(anoncryptedConnectionResponse){
     receiver = 'Hbank';
     console.log(`\"${sender}\" > Anondecrypt connection response from \"${receiver}\"`);
@@ -236,7 +255,7 @@ async function govSchema(){
 
     console.log(`\"${sender}\" -> Create and store in Wallet \"Government GovId\" Credential Definition`);
     [govIdCredDefId, govIdCredDefJson] = await indy.issuerCreateAndStoreCredentialDef(govWallet, govDid, govIdSchema, 'TAG1', 'CL', '{"support_revocation": false}');
-
+    console.log(` ##### govIdCredDefId = ${govIdCredDefId}`);
     console.log(`\"${sender}\" -> Send  \"Government GovId\" Credential Definition to Ledger`);
     await util.sendCredDef(poolHandle, govWallet, govDid, govIdCredDefJson);
 }
@@ -266,8 +285,8 @@ async function createCredential(authcryptedGovIdCredRequest){
      console.log(`\"${sender}\" -> Create \"GovId\" Credential for ${receiver}`);
      // note that encoding is not standardized by Indy except that 32-bit integers are encoded as themselves. IS-786
      let govIdCredValues = {
-         "first_name": {"raw": "Alice", "encoded": "1139481716457488690172217916278103335"},
-         "last_name": {"raw": "Garcia", "encoded": "5321642780241790123587902456789123452"}
+         "first_name": {"raw": "Alice", "encoded": "1667853377"},
+         "last_name": {"raw": "Garcia", "encoded": "1668440391"}
      };
 
      let [govIdCredJson] = await indy.issuerCreateCredential(govWallet, govIdCredOfferJson, authdecryptedGovIdCredRequestJson, govIdCredValues, null, -1);
@@ -291,6 +310,12 @@ module.exports = {
     init,
     connectWithSteward1,
     connectWithSteward2,
+    connectWithHbank1,
+    connectWithHbank1_1,
+    connectWithHbank2,
+    connectWithHstore1,
+    connectWithHstore1_1,
+    connectWithHstore2,
     govSchema,
     connectWithAlice1,
     connectWithAlice1_1,

@@ -13,6 +13,7 @@ let poolHandle;
 let aliceWallet;
 let aliceWalletConfig = {'id': 'aliceWallet'}
 let aliceWalletCredentials = {'key': 'alice_key'}
+let aliceMasterSecretId;
 
 let aliceGovDid, aliceGovKey, govAliceVerkey;
 let aliceHbankDid, aliceHbankKey, hbankAliceVerkey;
@@ -128,22 +129,22 @@ async function connectWithHstore1(request){
 async function createMasterSecret(authcryptedGovIdCredOffer){
     receiver = "Gov";
 
-    console.log(`\"${sender}\" -> Authdecrypted \"Transcript\" Credential Offer from Gov`);
-    let [govAliceVerkey, authdecryptedTranscriptCredOfferJson, authdecryptedGovIdCredOffer] = await util.authDecrypt(aliceWallet, aliceGovKey, authcryptedGovIdCredOffer);
+    console.log(`\"${sender}\" -> Authdecrypted \"GovID\" Credential Offer from Gov`);
+    let [govAliceVerkey, authdecryptedGovIdCredOfferJson, authdecryptedGovIdCredOffer] = await util.authDecrypt(aliceWallet, aliceGovKey, authcryptedGovIdCredOffer);
 
     console.log(`\"${sender}\" -> Create and store \"${sender}\" Master Secret in Wallet`);
-    let aliceMasterSecretId = await indy.proverCreateMasterSecret(aliceWallet, null);
+    aliceMasterSecretId = await indy.proverCreateMasterSecret(aliceWallet, null);
 
-    console.log(`\"${sender}\" -> Get \"Gov Transcript\" Credential Definition from Ledger`);
+    console.log(`\"${sender}\" -> Get \"GovID\" Credential Definition from Ledger`);
     [govIdCredDefId, govIdCredDef] = await util.getCredDef(poolHandle, aliceGovDid, authdecryptedGovIdCredOffer['cred_def_id']);
 
-    console.log(`\"${sender}\" -> Create \"Transcript\" Credential Request for ${receiver}`);
-    [govIdCredRequestJson, govIdCredRequestMetadataJson] = await indy.proverCreateCredentialReq(aliceWallet, aliceGovDid, authdecryptedTranscriptCredOfferJson, govIdCredDef, aliceMasterSecretId);
+    console.log(`\"${sender}\" -> Create \"GovID\" Credential Request for ${receiver}`);
+    [govIdCredRequestJson, govIdCredRequestMetadataJson] = await indy.proverCreateCredentialReq(aliceWallet, aliceGovDid, authdecryptedGovIdCredOfferJson, govIdCredDef, aliceMasterSecretId);
 
-    console.log(`\"${sender}\" -> Authcrypt \"Transcript\" Credential Request for ${receiver}`);
+    console.log(`\"${sender}\" -> Authcrypt \"GovId\" Credential Request for ${receiver}`);
     let authcryptedGovIdCredRequest = await indy.cryptoAuthCrypt(aliceWallet, aliceGovKey, govAliceVerkey, Buffer.from(JSON.stringify(govIdCredRequestJson),'utf8'));
 
-    console.log(`\"${sender}\" -> Send authcrypted \"Transcript\" Credential Request to ${receiver}`);
+    console.log(`\"${sender}\" -> Send authcrypted \"GovId\" Credential Request to ${receiver}`);
     console.log(` Request . ${authcryptedGovIdCredRequest}`);
     return authcryptedGovIdCredRequest;
 }
@@ -152,9 +153,58 @@ async function storeCredential(authcryptedGovIdCredJson){
     console.log(`\"${sender}\" -> Authdecrypted \"GovId\" Credential from Gov`);
     let [, authdecryptedGovIdCredJson] = await util.authDecrypt(aliceWallet, aliceGovKey, authcryptedGovIdCredJson);
 
-    console.log(`\"${sender}\" -> Store \"Transcript\" Credential from Gov`);
+    console.log(`\"${sender}\" -> Store \"GovI\" Credential from Gov`);
     await indy.proverStoreCredential(aliceWallet, null, govIdCredRequestMetadataJson,
         authdecryptedGovIdCredJson, govIdCredDef, null);
+}
+
+async function createProof(authcryptedReceiptProofRequestJson){
+    console.log("\"@@\" -> Authdecrypt \"@@\" Proof Request from @@");
+    let [, authdecryptedReceiptProofRequestJson] = await authDecrypt(aliceWallet, aliceHbankKey, authcryptedReceiptProofRequestJson);
+
+    console.log("\"@@\" -> Get credentials for \"@@\" Proof Request");
+    let searchForReceiptApplicationProofRequest = await indy.proverSearchCredentialsForProofReq(aliceWallet, authdecryptedReceiptProofRequestJson, null)
+
+    let credentials = await indy.proverFetchCredentialsForProofReq(searchForReceiptApplicationProofRequest, 'attr1_referent', 100)
+    let credForAttr1 = credentials[0]['cred_info'];
+
+    await indy.proverFetchCredentialsForProofReq(searchForReceiptApplicationProofRequest, 'attr2_referent', 100)
+    let credForAttr2 = credentials[0]['cred_info'];
+
+    await indy.proverFetchCredentialsForProofReq(searchForReceiptApplicationProofRequest, 'attr3_referent', 100)
+    let credForAttr3 = credentials[0]['cred_info'];
+
+    await indy.proverFetchCredentialsForProofReq(searchForReceiptApplicationProofRequest, 'attr4_referent', 100)
+    let credForAttr4 = credentials[0]['cred_info'];
+
+    await indy.proverCloseCredentialsSearchForProofReq(searchForReceiptApplicationProofRequest)
+
+    let credsForReceiptApplicationProof = {};
+    credsForReceiptApplicationProof[`${credForAttr1['referent']}`] = credForAttr1;
+    credsForReceiptApplicationProof[`${credForAttr2['referent']}`] = credForAttr2;
+    credsForReceiptApplicationProof[`${credForAttr3['referent']}`] = credForAttr3;
+    credsForReceiptApplicationProof[`${credForAttr4['referent']}`] = credForAttr4;
+
+    let [schemasJson, credDefsJson, revocStatesJson] = await util.proverGetEntitiesFromLedger(poolHandle, aliceHbankDid, credsForReceiptApplicationProof, 'Alice');
+
+    console.log("\"Alice\" -> Create \"Job-Application\" Proof");
+    let receiptApplicationRequestedCredsJson = {
+        'self_attested_attributes': {
+            'attr3_referent': '7458',
+            'attr4_referent': '7654'
+        },
+        'requested_attributes': {
+            'attr1_referent': {'cred_id': credForAttr1['referent'], 'revealed': true},
+            'attr2_referent': {'cred_id': credForAttr2['referent'], 'revealed': true},
+        }
+    };
+
+    let receiptApplicationProofJson = await indy.proverCreateProof(aliceWallet, authdecryptedReceiptProofRequestJson, receiptApplicationRequestedCredsJson, aliceMasterSecretId, schemasJson, credDefsJson, revocStatesJson);
+    console.log("\"@@\" -> Authcrypt \"@@\" Proof for @@");
+    let authcryptedReceiptApplicationProofJson = await indy.cryptoAuthCrypt(aliceWallet, aliceHbankKey, hbankAliceVerkey, Buffer.from(JSON.stringify(receiptApplicationProofJson),'utf8'));
+
+    console.log("\"@@\" -> Send authcrypted \"@@\" Proof to @@");
+    return authcryptedReceiptApplicationProofJson;
 }
 
 async function close(){
@@ -166,6 +216,9 @@ async function close(){
 module.exports = {
     init,
     connectWithGov1,
+    connectWithHbank1,
+    connectWithHstore1,
+    createProof,
     createMasterSecret,
     storeCredential,
     close
