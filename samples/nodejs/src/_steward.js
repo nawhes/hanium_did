@@ -73,8 +73,8 @@ async function connectWithGov1(){
         nonce: 123456789
     };
 
-	let ret = JSON.stringify(connectionRequest);
-	console.log(` Request . ${ret}`);
+    let ret = JSON.stringify(connectionRequest);
+    console.log(` Request . ${ret}`);
     return ret;
 }
 
@@ -124,8 +124,8 @@ async function connectWithHstore1(){
         nonce: 123456789
     };
 
-	let ret = JSON.stringify(connectionRequest);
-	console.log(` Request . ${ret}`);
+    let ret = JSON.stringify(connectionRequest);
+    console.log(` Request . ${ret}`);
     return ret;
 }
 
