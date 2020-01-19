@@ -36,30 +36,31 @@ async function main(){
 				await hbank.init();
 				await hstore.init();
 				await alice.init();
-				break;
-			case 'onboarding':
+			// 	break;
+			// case 'onboarding':
 				request = await steward.connectWithGov1();
 				response = await gov.connectWithSteward1(request);
 				await steward.connectWithGov1_1(response);
 				request = await gov.connectWithSteward2();
 				await steward.connectWithGov2(request);
 				
-				request = await gov.connectWithHbank1();
-				response = await hbank.connectWithGov1(request);
-				await gov.connectWithHbank1_1(response);
-				request = await hbank.connectWithGov2();
-				await gov.connectWithHbank2(request);
+				request = await steward.connectWithHbank1();
+				response = await hbank.connectWithSteward1(request);
+				await steward.connectWithHbank1_1(response);
+				request = await hbank.connectWithSteward2();
+				await steward.connectWithHbank2(request);
 
-				request = await gov.connectWithHstore1();
-				response = await hstore.connectWithGov1(request);
-				await gov.connectWithHstore1_1(response);
-				request = await hstore.connectWithGov2();
-				await gov.connectWithHstore2(request);
-				break;
-			case 'schema':
-				await gov.govSchema();
+				request = await steward.connectWithHstore1();
+				response = await hstore.connectWithSteward1(request);
+				await steward.connectWithHstore1_1(response);
+				request = await hstore.connectWithSteward2();
+				await steward.connectWithHstore2(request);
+			// 	break;
+			// case 'schema':
+				response = await gov.govSchema();
+				await hbank.getSchemaId(response);
 				await hbank.hbankSchema();
-				await hsotre.hstoreSchema();
+				await hstore.hstoreSchema();
 				break;
 			case 'govid':
 				request = await gov.connectWithAlice1();
@@ -76,7 +77,7 @@ async function main(){
 				await hbank.connectWithAlice1_1(response);
 				request = await hbank.createProofRequest();
 				response = await alice.createProof(request);
-				response = await hbank.verifyProof();
+				await hbank.verifyProof(response);
 				break;
 			// case 'order':
 			// 	request = await hstore.connectWithAlice1();

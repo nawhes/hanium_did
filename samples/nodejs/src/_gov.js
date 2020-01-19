@@ -17,7 +17,6 @@ let govDid, govKey;
 let govStewardDid, govStewardKey;
 let stewardGovVerkey, aliceGovVerkey;
 
-let hstoreGovDid, hbankGovDid;
 let govAliceDid, govAliceKey, aliceGovDid;
 
 let connectionRequest;
@@ -100,111 +99,6 @@ async function connectWithSteward2(){
 }
 
 
-async function connectWithHstore1(){
-    receiver = 'Hstore';
-    console.log(`\"${sender}\" > Create and store in Wallet \"${receiver} ${sender}\" DID`);
-    [govHstoreDid, govHstoreKey] = await indy.createAndStoreMyDid(govWallet, {});
-
-    console.log(`\"Steward\" > Send Nym to Ledger for \"Steward Goverment\" DID`);
-    await util.sendNym(poolHandle, govWallet, govDid, govHstoreDid, govHstoreKey, null);
-
-    console.log(`\"Steward\" > Send connection request to Goverment with \"Steward Goverment\" DID and nonce`);
-    connectionRequest = {
-        did: govHstoreDid,
-        nonce: 123456789
-    };
-
-	let ret = JSON.stringify(connectionRequest);
-	console.log(` Request . ${ret}`);
-    return ret;
-}
-
-async function connectWithHstore1_1(anoncryptedConnectionResponse){
-    receiver = 'Hstore';
-    console.log(`\"${sender}\" > Anondecrypt connection response from \"${receiver}\"`);
-    let decryptedConnectionResponse = JSON.parse(Buffer.from(await indy.cryptoAnonDecrypt(govWallet, govHstoreKey, anoncryptedConnectionResponse)));
-
-    console.log(`\"${sender}\" > Authenticates \"${receiver}\" by comparision of Nonce`);
-    if (connectionRequest['nonce'] !== decryptedConnectionResponse['nonce']) {
-        throw Error("nonces don't match!");
-    }
-
-    hstoreGovDid = decryptedConnectionResponse['did'];
-
-    console.log(`\"${sender}\" > Send Nym to Ledger for \"${receiver} ${sender}\" DID`);
-    await util.sendNym(poolHandle, govWallet, govDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
-}
-
-async function connectWithHstore2(authcryptedDidInfo){
-    receiver = 'Hstore';
-    console.log(`\"${sender}\" > Authdecrypted \"${receiver} DID info\" from ${receiver}`);
-    let [senderVerkey, authdecryptedDidInfo] =
-        await indy.cryptoAuthDecrypt(govWallet, govHstoreKey, Buffer.from(authcryptedDidInfo));
-
-    let authdecryptedDidInfoJson = JSON.parse(Buffer.from(authdecryptedDidInfo));
-    console.log(`\"${sender}\" > Authenticate Goverment by comparision of Verkeys`);
-    let retrievedVerkey = await indy.keyForDid(poolHandle, govWallet, hstoreGovDid);
-    if (senderVerkey !== retrievedVerkey) {
-        throw Error("Verkey is not the same");
-    }
-
-    console.log(`\"${sender}\" > Send Nym to Ledger for \"Goverment DID\" with $\'TRUST_ANCHOR\' Role`);
-    await util.sendNym(poolHandle, govWallet, govDid, authdecryptedDidInfoJson['did'], authdecryptedDidInfoJson['verkey'], 'TRUST_ANCHOR');
-}
-
-async function connectWithHbank1(){
-    receiver = 'Hbank';
-    console.log(`\"${sender}\" > Create and store in Wallet \"${receiver} ${sender}\" DID`);
-    [govHbankDid, govHbankKey] = await indy.createAndStoreMyDid(govWallet, {});
-
-    console.log(`\"Steward\" > Send Nym to Ledger for \"Steward Goverment\" DID`);
-    await util.sendNym(poolHandle, govWallet, govDid, govHbankDid, govHbankKey, null);
-
-    console.log(`\"Steward\" > Send connection request to Goverment with \"Steward Goverment\" DID and nonce`);
-    connectionRequest = {
-        did: govHbankDid,
-        nonce: 123456789
-    };
-
-	let ret = JSON.stringify(connectionRequest);
-	console.log(` Request . ${ret}`);
-    return ret;
-}
-
-async function connectWithHbank1_1(anoncryptedConnectionResponse){
-    receiver = 'Hbank';
-    console.log(`\"${sender}\" > Anondecrypt connection response from \"${receiver}\"`);
-    let decryptedConnectionResponse = JSON.parse(Buffer.from(await indy.cryptoAnonDecrypt(govWallet, govHbankKey, anoncryptedConnectionResponse)));
-
-    console.log(`\"${sender}\" > Authenticates \"${receiver}\" by comparision of Nonce`);
-    if (connectionRequest['nonce'] !== decryptedConnectionResponse['nonce']) {
-        throw Error("nonces don't match!");
-    }
-
-    hbankGovDid = decryptedConnectionResponse['did'];
-
-    console.log(`\"${sender}\" > Send Nym to Ledger for \"${receiver} ${sender}\" DID`);
-    await util.sendNym(poolHandle, govWallet, govDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
-}
-
-async function connectWithHbank2(authcryptedDidInfo){
-    receiver = 'Hbank';
-    console.log(`\"${sender}\" > Authdecrypted \"${receiver} DID info\" from ${receiver}`);
-    let [senderVerkey, authdecryptedDidInfo] =
-        await indy.cryptoAuthDecrypt(govWallet, govHbankKey, Buffer.from(authcryptedDidInfo));
-
-    let authdecryptedDidInfoJson = JSON.parse(Buffer.from(authdecryptedDidInfo));
-    console.log(`\"${sender}\" > Authenticate Goverment by comparision of Verkeys`);
-    let retrievedVerkey = await indy.keyForDid(poolHandle, govWallet, hbankGovDid);
-    if (senderVerkey !== retrievedVerkey) {
-        throw Error("Verkey is not the same");
-    }
-
-    console.log(`\"${sender}\" > Send Nym to Ledger for \"Goverment DID\" with $\'TRUST_ANCHOR\' Role`);
-    await util.sendNym(poolHandle, govWallet, govDid, authdecryptedDidInfoJson['did'], authdecryptedDidInfoJson['verkey'], 'TRUST_ANCHOR');
-}
-
-
 async function connectWithAlice1(){
     receiver = 'Alice';
 
@@ -258,6 +152,7 @@ async function govSchema(){
     console.log(` ##### govIdCredDefId = ${govIdCredDefId}`);
     console.log(`\"${sender}\" -> Send  \"Government GovId\" Credential Definition to Ledger`);
     await util.sendCredDef(poolHandle, govWallet, govDid, govIdCredDefJson);
+    return govIdCredDefId;
 }
 
 async function createCredentialOffer(){
@@ -280,7 +175,7 @@ async function createCredential(authcryptedGovIdCredRequest){
 
      console.log(`\"${sender}\" -> Authdecrypt \"GovId\" Credential Request from ${receiver}`);
      let authdecryptedGovIdCredRequestJson;
-     [aliceGovernmentVerkey, authdecryptedGovIdCredRequestJson] = await util.authDecrypt(govWallet, govAliceKey, authcryptedGovIdCredRequest);
+     [aliceGovVerkey, authdecryptedGovIdCredRequestJson] = await util.authDecrypt(govWallet, govAliceKey, authcryptedGovIdCredRequest);
 
      console.log(`\"${sender}\" -> Create \"GovId\" Credential for ${receiver}`);
      // note that encoding is not standardized by Indy except that 32-bit integers are encoded as themselves. IS-786
@@ -310,12 +205,12 @@ module.exports = {
     init,
     connectWithSteward1,
     connectWithSteward2,
-    connectWithHbank1,
-    connectWithHbank1_1,
-    connectWithHbank2,
-    connectWithHstore1,
-    connectWithHstore1_1,
-    connectWithHstore2,
+    // connectWithHbank1,
+    // connectWithHbank1_1,
+    // connectWithHbank2,
+    // connectWithHstore1,
+    // connectWithHstore1_1,
+    // connectWithHstore2,
     govSchema,
     connectWithAlice1,
     connectWithAlice1_1,

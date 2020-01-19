@@ -14,8 +14,8 @@ let hbankWallet;
 let hbankWalletConfig = {'id': 'hbankWallet'};
 let hbankWalletCredentials = {'key': 'hbankKey'};
 let hbankDid, hbankKey;
-let hbankGovDid, hbankGovKey;
-let govHbankVerkey, aliceHbankVerkey;
+let hbankStewardDid, hbankStewardKey;
+let stewardHbankVerkey, aliceHbankVerkey;
 
 let hbankAliceDid, hbankAliceKey, aliceHbankDid;
 
@@ -59,31 +59,31 @@ async function init(){
 }
 
 
-async function connectWithGov1(request){
+async function connectWithSteward1(request){
 	let connectionRequest = JSON.parse(request);
-    receiver = 'Gov';
+    receiver = 'Steward';
 
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender} ${receiver}\" DID`);
-    [hbankGovDid, hbankGovKey] = await indy.createAndStoreMyDid(hbankWallet, {});
+    [hbankStewardDid, hbankStewardKey] = await indy.createAndStoreMyDid(hbankWallet, {});
 
     console.log(`\"${sender}\" > Get key for did from \"${receiver}\" connection request`);
-    govHbankVerkey = await indy.keyForDid(poolHandle, hbankWallet, connectionRequest.did);
+    stewardHbankVerkey = await indy.keyForDid(poolHandle, hbankWallet, connectionRequest.did);
 
     console.log(`\"${sender}\" > Anoncrypt connection response for \"${receiver}\" with \"${sender} ${receiver}\" DID, verkey and nonce`);
     let connectionResponse = JSON.stringify({
-        'did': hbankGovDid,
-        'verkey': hbankGovKey,
+        'did': hbankStewardDid,
+        'verkey': hbankStewardKey,
         'nonce': connectionRequest['nonce']
     });
-    let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(govHbankVerkey, Buffer.from(connectionResponse, 'utf8'));
+    let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(stewardHbankVerkey, Buffer.from(connectionResponse, 'utf8'));
     console.log(`\"${sender}\" > Send anoncrypted connection response to \"${receiver}\"`);
 	console.log(` Response. ${anoncryptedConnectionResponse}`);
 	
 	return anoncryptedConnectionResponse;
 }
 
-async function connectWithGov2(){
-    receiver = 'Gov';
+async function connectWithSteward2(){
+    receiver = 'Steward';
 
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender}\" new DID"`);
     [hbankDid, hbankKey] = await indy.createAndStoreMyDid(hbankWallet, {});
@@ -93,7 +93,7 @@ async function connectWithGov2(){
         'did': hbankDid,
         'verkey': hbankKey
     });
-    let authcryptedDidInfo = await indy.cryptoAuthCrypt(hbankWallet, hbankGovKey, govHbankVerkey, Buffer.from(didInfoJson, 'utf8'));
+    let authcryptedDidInfo = await indy.cryptoAuthCrypt(hbankWallet, hbankStewardKey, stewardHbankVerkey, Buffer.from(didInfoJson, 'utf8'));
 
     console.log(`\"${sender}\" > Send authcrypted \"${sender} DID info\" to "${receiver}"`);
 
@@ -102,8 +102,9 @@ async function connectWithGov2(){
 
 async function hbankSchema(){
     console.log(`\"${sender}\" -> Create \"Receipt\" Schema`);
-    let [receiptSchemaId, receiptSchema] = await indy.issuerCreateSchema(hbankDid, 'Receipt', '0.1', ['first_name', 'last_name']);
-            
+    let [receiptSchemaId, receiptSchema] = await indy.issuerCreateSchema(hbankDid, 'Receipt', '0.1', 
+        ['first_name', 'last_name']);
+
     console.log(`\"${sender}\" -> Send \"Receipt\" Schema to Ledger`);
     await util.sendSchema(poolHandle, hbankWallet, hbankDid, receiptSchema);
 
@@ -153,11 +154,12 @@ async function connectWithAlice1_1(anoncryptedConnectionResponse){
     console.log(`\"${sender}\" > Send Nym to Ledger for \"${receiver} ${sender}\" DID`);
     await util.sendNym(poolHandle, hbankWallet, hbankDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
 }
+let govIdCredDef;
+async function getSchemaId(govId){
+    govIdCredDef = govId;
+}
 
 async function createProofRequest(){
-    //let govIdCredDef = await indy.getCredDef(poolHandle, hbankWallet, hbankDid, )
-    let govIdCredDef = 'GovId:0.1';
-
     let nonce = await indy.generateNonce();
     receiptProofRequestJson = {
         'nonce': nonce,
@@ -178,7 +180,8 @@ async function createProofRequest(){
             'attr4_referent': {
                 'name': 'receive_account'
             }
-        }
+        },
+        "requested_predicates": {},
     }
 
     console.log(`\"${sender}\" -> Get key for Alice did`);
@@ -195,7 +198,7 @@ async function verifyProof(authcryptedReceiptApplicationProofJson){
     let decryptedReceiptApplicationProofJson, decryptedReceiptApplicationProof;
     [, decryptedReceiptApplicationProofJson, decryptedReceiptApplicationProof] = await util.authDecrypt(hbankWallet, hbankAliceKey, authcryptedReceiptApplicationProofJson);
 
-    let revocRefDefsJson, revocRegsJson;
+    let schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson;
     [schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson] = await util.verifierGetEntitiesFromLedger(poolHandle, hbankDid, decryptedReceiptApplicationProof['identifiers'], 'Hbank');
 
     console.log("\"@@\" -> Verify \"@@\" Proof from Alice");
@@ -220,10 +223,11 @@ async function close(){
 module.exports = {
     init,
     hbankSchema,
-    connectWithGov1,
-    connectWithGov2,
+    connectWithSteward1,
+    connectWithSteward2,
     connectWithAlice1,
     connectWithAlice1_1,
+    getSchemaId,
     createProofRequest,
     verifyProof,
     close

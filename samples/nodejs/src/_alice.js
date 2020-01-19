@@ -7,7 +7,7 @@ const assert = require('assert');
 const sender = 'alice';
 let receiver;
 
-let poolName = 'pool2';
+let poolName = 'poolAlice';
 let poolHandle;
 
 let aliceWallet;
@@ -153,17 +153,20 @@ async function storeCredential(authcryptedGovIdCredJson){
     console.log(`\"${sender}\" -> Authdecrypted \"GovId\" Credential from Gov`);
     let [, authdecryptedGovIdCredJson] = await util.authDecrypt(aliceWallet, aliceGovKey, authcryptedGovIdCredJson);
 
-    console.log(`\"${sender}\" -> Store \"GovI\" Credential from Gov`);
+    console.log(`\"${sender}\" -> Store \"GovId\" Credential from Gov`);
     await indy.proverStoreCredential(aliceWallet, null, govIdCredRequestMetadataJson,
         authdecryptedGovIdCredJson, govIdCredDef, null);
 }
 
 async function createProof(authcryptedReceiptProofRequestJson){
     console.log("\"@@\" -> Authdecrypt \"@@\" Proof Request from @@");
-    let [, authdecryptedReceiptProofRequestJson] = await authDecrypt(aliceWallet, aliceHbankKey, authcryptedReceiptProofRequestJson);
+    let authdecryptedReceiptProofRequestJson;
+    [hbankAliceVerkey, authdecryptedReceiptProofRequestJson] = await util.authDecrypt(aliceWallet, aliceHbankKey, authcryptedReceiptProofRequestJson);
+
+    console.log(authdecryptedReceiptProofRequestJson);
 
     console.log("\"@@\" -> Get credentials for \"@@\" Proof Request");
-    let searchForReceiptApplicationProofRequest = await indy.proverSearchCredentialsForProofReq(aliceWallet, authdecryptedReceiptProofRequestJson, null)
+    let searchForReceiptApplicationProofRequest = await indy.proverSearchCredentialsForProofReq(aliceWallet, authdecryptedReceiptProofRequestJson, null);
 
     let credentials = await indy.proverFetchCredentialsForProofReq(searchForReceiptApplicationProofRequest, 'attr1_referent', 100)
     let credForAttr1 = credentials[0]['cred_info'];
@@ -196,7 +199,8 @@ async function createProof(authcryptedReceiptProofRequestJson){
         'requested_attributes': {
             'attr1_referent': {'cred_id': credForAttr1['referent'], 'revealed': true},
             'attr2_referent': {'cred_id': credForAttr2['referent'], 'revealed': true},
-        }
+        },
+        'requested_predicates': {}
     };
 
     let receiptApplicationProofJson = await indy.proverCreateProof(aliceWallet, authdecryptedReceiptProofRequestJson, receiptApplicationRequestedCredsJson, aliceMasterSecretId, schemasJson, credDefsJson, revocStatesJson);

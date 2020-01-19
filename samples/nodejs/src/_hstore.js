@@ -14,8 +14,8 @@ let hstoreWallet;
 let hstoreWalletConfig = {'id': 'hstoreWallet'};
 let hstoreWalletCredentials = {'key': 'hstoreKey'};
 let hstoreDid, hstoreKey;
-let hstoreGovDid, hstoreGovKey;
-let govHstoreVerkey, aliceHstoreVerkey;
+let hstoreStewardDid, hstoreStewardKey;
+let stewardHstoreVerkey, aliceHstoreVerkey;
 
 let hstoreAliceDid, hstoreAliceKey, aliceHstoreDid;
 
@@ -57,31 +57,31 @@ async function init(){
 }
 
 
-async function connectWithGov1(request){
+async function connectWithSteward1(request){
 	let connectionRequest = JSON.parse(request);
-    receiver = 'Gov';
+    receiver = 'Steward';
 
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender} ${receiver}\" DID`);
-    [hstoreGovDid, hstoreGovKey] = await indy.createAndStoreMyDid(hstoreWallet, {});
+    [hstoreStewardDid, hstoreStewardKey] = await indy.createAndStoreMyDid(hstoreWallet, {});
 
     console.log(`\"${sender}\" > Get key for did from \"${receiver}\" connection request`);
-    govHstoreVerkey = await indy.keyForDid(poolHandle, hstoreWallet, connectionRequest.did);
+    stewardHstoreVerkey = await indy.keyForDid(poolHandle, hstoreWallet, connectionRequest.did);
 
     console.log(`\"${sender}\" > Anoncrypt connection response for \"${receiver}\" with \"${sender} ${receiver}\" DID, verkey and nonce`);
     let connectionResponse = JSON.stringify({
-        'did': hstoreGovDid,
-        'verkey': hstoreGovKey,
+        'did': hstoreStewardDid,
+        'verkey': hstoreStewardKey,
         'nonce': connectionRequest['nonce']
     });
-    let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(govHstoreVerkey, Buffer.from(connectionResponse, 'utf8'));
+    let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(stewardHstoreVerkey, Buffer.from(connectionResponse, 'utf8'));
     console.log(`\"${sender}\" > Send anoncrypted connection response to \"${receiver}\"`);
 	console.log(` Response. ${anoncryptedConnectionResponse}`);
 	
 	return anoncryptedConnectionResponse;
 }
 
-async function connectWithGov2(){
-    receiver = 'Gov';
+async function connectWithSteward2(){
+    receiver = 'Steward';
 
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender}\" new DID"`);
     [hstoreDid, hstoreKey] = await indy.createAndStoreMyDid(hstoreWallet, {});
@@ -91,7 +91,7 @@ async function connectWithGov2(){
         'did': hstoreDid,
         'verkey': hstoreKey
     });
-    let authcryptedDidInfo = await indy.cryptoAuthCrypt(hstoreWallet, hstoreGovKey, govHstoreVerkey, Buffer.from(didInfoJson, 'utf8'));
+    let authcryptedDidInfo = await indy.cryptoAuthCrypt(hstoreWallet, hstoreStewardKey, stewardHstoreVerkey, Buffer.from(didInfoJson, 'utf8'));
 
     console.log(`\"${sender}\" > Send authcrypted \"${sender} DID info\" to "${receiver}"`);
 
@@ -161,8 +161,8 @@ async function close(){
 module.exports = {
     init,
     hstoreSchema,
-    connectWithGov1,
-    connectWithGov2,
+    connectWithSteward1,
+    connectWithSteward2,
     connectWithAlice1,
     connectWithAlice1_1,
     // createProofRequest,
