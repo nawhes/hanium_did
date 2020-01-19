@@ -58,7 +58,7 @@ async function init(){
 
 
 async function connectWithSteward1(request){
-	connectionRequest = JSON.parse(request);
+    connectionRequest = JSON.parse(request);
     receiver = 'Steward';
 
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender} ${receiver}\" DID`);
@@ -75,9 +75,9 @@ async function connectWithSteward1(request){
     });
     let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(stewardGovVerkey, Buffer.from(connectionResponse, 'utf8'));
     console.log(`\"${sender}\" > Send anoncrypted connection response to \"${receiver}\"`);
-	console.log(` Response. ${anoncryptedConnectionResponse}`);
+    console.log(` Response. ${anoncryptedConnectionResponse}`);
 	
-	return anoncryptedConnectionResponse;
+    return anoncryptedConnectionResponse;
 }
 
 async function connectWithSteward2(){
@@ -95,7 +95,7 @@ async function connectWithSteward2(){
 
     console.log(`\"${sender}\" > Send authcrypted \"${sender} DID info\" to "${receiver}"`);
 
-	return authcryptedDidInfo;
+    return authcryptedDidInfo;
 }
 
 
@@ -205,12 +205,6 @@ module.exports = {
     init,
     connectWithSteward1,
     connectWithSteward2,
-    // connectWithHbank1,
-    // connectWithHbank1_1,
-    // connectWithHbank2,
-    // connectWithHstore1,
-    // connectWithHstore1_1,
-    // connectWithHstore2,
     govSchema,
     connectWithAlice1,
     connectWithAlice1_1,
