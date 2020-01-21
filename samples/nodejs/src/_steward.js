@@ -5,20 +5,10 @@ const util = require('./util');
 const assert = require('assert');
 
 const sender = 'Steward';
-let receiver;
 
-let poolName = 'poolSteward';
-let poolHandle;
-
-let stewardWallet;
-let stewardWalletConfig = {'id': 'stewardWallet'}
-let stewardWalletCredentials = {'key': 'stewardKey'}
+let poolName = 'poolSteward', poolHandle;
+let stewardWallet, stewardWalletConfig = {'id': 'stewardWallet'}, stewardWalletCredentials = {'key': 'stewardKey'}
 let stewardDid, stewardKey;
-let stewardGovDid, stewardGovKey, govStewardDid;
-
-let stewardHbankDid, stewardHbankKey, hbankStewardDid;
-let stewardHstoreDid, stewardHstoreKey, hstoreStewardDid;
-
 
 let connectionRequest;
 
@@ -53,6 +43,8 @@ async function init(){
 	stewardWallet = await indy.openWallet(stewardWalletConfig, stewardWalletCredentials);
 }
 
+//Gov
+let stewardGovDid, stewardGovKey, govStewardDid;
 async function connectWithGov1(){
     console.log("\"Steward\" -> Create and store in Wallet DID from seed");
     let stewardDidInfo = {
@@ -65,7 +57,7 @@ async function connectWithGov1(){
     [stewardGovDid, stewardGovKey] = await indy.createAndStoreMyDid(stewardWallet, {});
 
     console.log(`\"Steward\" > Send Nym to Ledger for \"Steward Gov\" DID`);
-    await util.sendNym(poolHandle, stewardWallet, stewardDid, stewardGovDid, stewardGovKey, null);
+    await util._sendNym(poolHandle, stewardWallet, stewardDid, stewardGovDid, stewardGovKey, null);
 
     console.log(`\"Steward\" > Send connection request to Gov with \"Steward Gov\" DID and nonce`);
     connectionRequest = {
@@ -73,9 +65,7 @@ async function connectWithGov1(){
         nonce: 123456789
     };
 
-    let ret = JSON.stringify(connectionRequest);
-    // console.log(` Request . ${ret}`);
-    return ret;
+    return JSON.stringify(connectionRequest);
 }
 
 async function connectWithGov1_1(anoncryptedConnectionResponse){
@@ -90,7 +80,7 @@ async function connectWithGov1_1(anoncryptedConnectionResponse){
     govStewardDid = decryptedConnectionResponse['did'];
 
     console.log(`\"Steward\" > Send Nym to Ledger for \"Gov Steward\" DID`);
-    await util.sendNym(poolHandle, stewardWallet, stewardDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
+    await util._sendNym(poolHandle, stewardWallet, stewardDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
 }
 
 async function connectWithGov2(authcryptedDidInfo){
@@ -106,12 +96,14 @@ async function connectWithGov2(authcryptedDidInfo){
     }
 
     console.log(`\"Steward\" > Send Nym to Ledger for \"Gov DID\" with $\'TRUST_ANCHOR\' Role`);
-    await util.sendNym(poolHandle, stewardWallet, stewardDid, authdecryptedDidInfoJson['did'], authdecryptedDidInfoJson['verkey'], 'TRUST_ANCHOR');
+    await util._sendNym(poolHandle, stewardWallet, stewardDid, authdecryptedDidInfoJson['did'], authdecryptedDidInfoJson['verkey'], 'TRUST_ANCHOR');
 }
 
 
+//Hstore
+let stewardHstoreDid, stewardHstoreKey, hstoreStewardDid;
 async function connectWithHstore1(){
-    receiver = 'Hstore';
+    let receiver = 'Hstore';
     console.log(`\"${sender}\" > Create and store in Wallet \"${receiver} ${sender}\" DID`);
     [stewardHstoreDid, stewardHstoreKey] = await indy.createAndStoreMyDid(stewardWallet, {});
 
@@ -124,13 +116,11 @@ async function connectWithHstore1(){
         nonce: 123456789
     };
 
-    let ret = JSON.stringify(connectionRequest);
-    // console.log(` Request . ${ret}`);
-    return ret;
+    return JSON.stringify(connectionRequest);
 }
 
 async function connectWithHstore1_1(anoncryptedConnectionResponse){
-    receiver = 'Hstore';
+    let receiver = 'Hstore';
     console.log(`\"${sender}\" > Anondecrypt connection response from \"${receiver}\"`);
     let decryptedConnectionResponse = JSON.parse(Buffer.from(await indy.cryptoAnonDecrypt(stewardWallet, stewardHstoreKey, anoncryptedConnectionResponse)));
 
@@ -146,7 +136,7 @@ async function connectWithHstore1_1(anoncryptedConnectionResponse){
 }
 
 async function connectWithHstore2(authcryptedDidInfo){
-    receiver = 'Hstore';
+    let receiver = 'Hstore';
     console.log(`\"${sender}\" > Authdecrypted \"${receiver} DID info\" from ${receiver}`);
     let [senderVerkey, authdecryptedDidInfo] =
         await indy.cryptoAuthDecrypt(stewardWallet, stewardHstoreKey, Buffer.from(authcryptedDidInfo));
@@ -162,8 +152,10 @@ async function connectWithHstore2(authcryptedDidInfo){
     await util.sendNym(poolHandle, stewardWallet, stewardDid, authdecryptedDidInfoJson['did'], authdecryptedDidInfoJson['verkey'], 'TRUST_ANCHOR');
 }
 
+//Hbank
+let stewardHbankDid, stewardHbankKey, hbankStewardDid;
 async function connectWithHbank1(){
-    receiver = 'Hbank';
+    let receiver = 'Hbank';
     console.log(`\"${sender}\" > Create and store in Wallet \"${receiver} ${sender}\" DID`);
     [stewardHbankDid, stewardHbankKey] = await indy.createAndStoreMyDid(stewardWallet, {});
 
@@ -176,13 +168,11 @@ async function connectWithHbank1(){
         nonce: 123456789
     };
 
-	let ret = JSON.stringify(connectionRequest);
-	// console.log(` Request . ${ret}`);
-    return ret;
+    return JSON.stringify(connectionRequest);
 }
 
 async function connectWithHbank1_1(anoncryptedConnectionResponse){
-    receiver = 'Hbank';
+    let receiver = 'Hbank';
     console.log(`\"${sender}\" > Anondecrypt connection response from \"${receiver}\"`);
     let decryptedConnectionResponse = JSON.parse(Buffer.from(await indy.cryptoAnonDecrypt(stewardWallet, stewardHbankKey, anoncryptedConnectionResponse)));
 
@@ -198,7 +188,7 @@ async function connectWithHbank1_1(anoncryptedConnectionResponse){
 }
 
 async function connectWithHbank2(authcryptedDidInfo){
-    receiver = 'Hbank';
+    let receiver = 'Hbank';
     console.log(`\"${sender}\" > Authdecrypted \"${receiver} DID info\" from ${receiver}`);
     let [senderVerkey, authdecryptedDidInfo] =
         await indy.cryptoAuthDecrypt(stewardWallet, stewardHbankKey, Buffer.from(authcryptedDidInfo));

@@ -1,6 +1,6 @@
-const express = require('express');
-const app = express();
-const port = 8000;
+// const express = require('express');
+// const app = express();
+// const port = 8000;
 
 const steward = require('./_steward');
 const alice = require('./_alice');
@@ -10,13 +10,13 @@ const hstore = require('./_hstore');
 
 const readline = require('readline');
 
-function test(){
+function rl(){
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
     });
 	return new Promise( (resolve, reject) => {
-		rl.question(' ## What do you want? ', (answer) => {
+		rl.question('\n ## What do you want? ', (answer) => {
 			rl.close();
 			resolve(answer);
 		});
@@ -27,7 +27,7 @@ function test(){
 async function main(){
 	let ans;
 	while(1){
-		ans = await test();
+		ans = await rl();
 		let request, response;
 		switch(ans){
 			case 'init':
@@ -36,8 +36,8 @@ async function main(){
 				await hbank.init();
 				await hstore.init();
 				await alice.init();
-			// 	break;
-			// case 'onboarding':
+				break;
+			case 'onboarding':
 				request = await steward.connectWithGov1();
 				response = await gov.connectWithSteward1(request);
 				await steward.connectWithGov1_1(response);
@@ -55,8 +55,8 @@ async function main(){
 				await steward.connectWithHstore1_1(response);
 				request = await hstore.connectWithSteward2();
 				await steward.connectWithHstore2(request);
-			// 	break;
-			// case 'schema':
+				break;
+			case 'schema':
 				response = await gov.govSchema();
 				await hbank.getSchemaId(response);
 				response = await hbank.hbankSchema();
@@ -71,6 +71,9 @@ async function main(){
 				response = await alice.govid_createMasterSecret(request);
 				response = await gov.createCredential(response);
 				await alice.govid_storeCredential(response);
+
+				await alice.wallet();
+
 				break;
 			case 'receipt':
 				request = await hbank.connectWithAlice1();
@@ -83,6 +86,9 @@ async function main(){
 				response = await alice.receipt_createMasterSecret(request);
 				response = await hbank.createCredential(response);
 				await alice.receipt_storeCredential(response);
+
+				await alice.wallet();
+
 				break;
 			case 'order':
 				request = await hstore.connectWithAlice1();
@@ -92,13 +98,16 @@ async function main(){
 				response = await alice.order_createProof(request);
 				await hstore.verifyProof(response);
 				break;
+			case 'wallet':
+				await alice.wallet();
+				break;
 			case 'close':
 				await steward.close();
 				await gov.close();
 				await hbank.close();
 				await hstore.close();
 				await alice.close();
-				break;
+				return;
 		}
 	}
 }

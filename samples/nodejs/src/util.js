@@ -138,15 +138,34 @@ async function sendNym(poolHandle, walletHandle, Did, newDid, newKey, role) {
     await indy.signAndSubmitRequest(poolHandle, walletHandle, Did, nymRequest);
 }
 
+async function _sendNym(poolHandle, walletHandle, Did, newDid, newKey, role) {
+    let nymRequest = await indy.buildNymRequest(Did, newDid, newKey, null, role);
+    let result = await indy.signAndSubmitRequest(poolHandle, walletHandle, Did, nymRequest);
+    console.log(result);
+}
+
 async function sendSchema(poolHandle, walletHandle, Did, schema) {
     // schema = JSON.stringify(schema); // FIXME: Check JSON parsing
     let schemaRequest = await indy.buildSchemaRequest(Did, schema);
     await indy.signAndSubmitRequest(poolHandle, walletHandle, Did, schemaRequest)
 }
 
+async function _sendSchema(poolHandle, walletHandle, Did, schema) {
+    // schema = JSON.stringify(schema); // FIXME: Check JSON parsing
+    let schemaRequest = await indy.buildSchemaRequest(Did, schema);
+    let result = await indy.signAndSubmitRequest(poolHandle, walletHandle, Did, schemaRequest)
+    console.log(result);
+}
+
 async function sendCredDef(poolHandle, walletHandle, did, credDef) {
     let credDefRequest = await indy.buildCredDefRequest(did, credDef);
     await indy.signAndSubmitRequest(poolHandle, walletHandle, did, credDefRequest);
+}
+
+async function _sendCredDef(poolHandle, walletHandle, did, credDef) {
+    let credDefRequest = await indy.buildCredDefRequest(did, credDef);
+    let result = await indy.signAndSubmitRequest(poolHandle, walletHandle, did, credDefRequest);
+    console.log(result);
 }
 
 async function getSchema(poolHandle, did, schemaId) {
@@ -224,8 +243,11 @@ module.exports = {
     onboarding,
     getVerinym,
     sendSchema,
+    _sendSchema,
     sendCredDef,
+    _sendCredDef,
     sendNym,
+    _sendNym,
     getSchema,
     getCredDef,
     proverGetEntitiesFromLedger,

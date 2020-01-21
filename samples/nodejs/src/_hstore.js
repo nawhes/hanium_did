@@ -5,23 +5,12 @@ const util = require('./util');
 const assert = require('assert');
 
 const sender = 'Hstore';
-let receiver;
 
-let poolName = 'poolHstore';
-let poolHandle;
-
-let hstoreWallet;
-let hstoreWalletConfig = {'id': 'hstoreWallet'};
-let hstoreWalletCredentials = {'key': 'hstoreKey'};
+let poolName = 'poolHstore', poolHandle;
+let hstoreWallet, hstoreWalletConfig = {'id': 'hstoreWallet'}, hstoreWalletCredentials = {'key': 'hstoreKey'};
 let hstoreDid, hstoreKey;
-let hstoreStewardDid, hstoreStewardKey;
-let stewardHstoreVerkey, aliceHstoreVerkey;
-
-let hstoreAliceDid, hstoreAliceKey, aliceHstoreDid;
 
 let connectionRequest;
-
-let orderCredDefId, orderCredDefJson, orderCredOfferJson;
 
 async function init(){
     console.log(` # ${sender} is ready!`);
@@ -56,10 +45,11 @@ async function init(){
     }
 }
 
-
+//Steward
+let hstoreStewardDid, hstoreStewardKey, stewardHstoreVerkey;
 async function connectWithSteward1(request){
 	let connectionRequest = JSON.parse(request);
-    receiver = 'Steward';
+    let receiver = 'Steward';
 
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender} ${receiver}\" DID`);
     [hstoreStewardDid, hstoreStewardKey] = await indy.createAndStoreMyDid(hstoreWallet, {});
@@ -75,13 +65,12 @@ async function connectWithSteward1(request){
     });
     let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(stewardHstoreVerkey, Buffer.from(connectionResponse, 'utf8'));
     console.log(`\"${sender}\" > Send anoncrypted connection response to \"${receiver}\"`);
-	// console.log(` Response. ${anoncryptedConnectionResponse}`);
 	
 	return anoncryptedConnectionResponse;
 }
 
 async function connectWithSteward2(){
-    receiver = 'Steward';
+    let receiver = 'Steward';
 
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender}\" new DID"`);
     [hstoreDid, hstoreKey] = await indy.createAndStoreMyDid(hstoreWallet, {});
@@ -98,6 +87,8 @@ async function connectWithSteward2(){
 	return authcryptedDidInfo;
 }
 
+//Schema
+// let orderCredDefId, orderCredDefJson, orderCredOfferJson;
 // async function hstoreSchema(){
 //     console.log(`\"${sender}\" -> Create \"Order\" Schema`);
 //     let [orderSchemaId, orderSchema] = await indy.issuerCreateSchema(hstoreDid, 'Order', '0.1', ['first_name', 'last_name']);
@@ -120,8 +111,10 @@ async function getSchemaId(schemaId){
     receiptCredDef = schemaId;
 }
 
+//Alice
+let hstoreAliceDid, hstoreAliceKey, aliceHstoreDid, aliceHstoreVerkey;
 async function connectWithAlice1(){
-    receiver = 'Alice';
+    let receiver = 'Alice';
 
     console.log(`\"${sender}\" > Create and store in Wallet \"${sender} ${receiver}\" DID`);
     [hstoreAliceDid, hstoreAliceKey] = await indy.createAndStoreMyDid(hstoreWallet, {});
@@ -135,13 +128,11 @@ async function connectWithAlice1(){
         nonce: 123456789
     };
 
-    let ret = JSON.stringify(connectionRequest);
-    // console.log(` Request . ${ret}`);
-    return ret;
+    return JSON.stringify(connectionRequest);
 }
 
 async function connectWithAlice1_1(anoncryptedConnectionResponse){
-    receiver = 'Alice';
+    let receiver = 'Alice';
 
     console.log(`\"${sender}\" > Anondecrypt connection response from \"${receiver}\"`);
     let decryptedConnectionResponse = JSON.parse(Buffer.from(await indy.cryptoAnonDecrypt(hstoreWallet, hstoreAliceKey, anoncryptedConnectionResponse)));
@@ -200,14 +191,16 @@ async function verifyProof(authcryptedOrderApplicationProofJson){
     let schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson;
     [schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson] = await util.verifierGetEntitiesFromLedger(poolHandle, hstoreDid, decryptedOrderApplicationProof['identifiers'], 'Hstore');
 
-    console.log("\"@@\" -> Verify \"@@\" Proof from Alice");
+    console.log(`\"${sender}\" -> Verify \"Order\" Proof from Alice`);
     assert('745' === decryptedOrderApplicationProof['requested_proof']['self_attested_attrs']['attr1_referent']);
     assert('123' === decryptedOrderApplicationProof['requested_proof']['self_attested_attrs']['attr2_referent']);
     
     assert('7458' === decryptedOrderApplicationProof['requested_proof']['revealed_attrs']['attr3_referent']['raw']);
     assert('7654' === decryptedOrderApplicationProof['requested_proof']['revealed_attrs']['attr4_referent']['raw']);
     
-    assert(await indy.verifierVerifyProof(orderProofRequestJson, decryptedOrderApplicationProofJson, schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson));
+    let result = await indy.verifierVerifyProof(orderProofRequestJson, decryptedOrderApplicationProofJson, schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson) 
+    assert(result);
+    console.log(result);
 }
 
 async function close(){
