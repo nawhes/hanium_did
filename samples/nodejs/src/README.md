@@ -1,6 +1,6 @@
 #### 개요
 해당 데모는 전자상거래의 주문입력을 DID환경에서 처리하는 프로세스를 다루며
-Hyperledger indy 환경에서 동작한다.
+Hyperledger indy 환경에서 동작한다.\n
 모든 소스는 github.com/hyperledger/indy-sdk.git을 참조하였다.
 
 데모는 nodejs에서 동작하는 6개의 소스파일로 이루어져있으며 
@@ -29,5 +29,5 @@ alice는 receipt를 활용하여 hstore에게 자신의 주문을 전송한다.
  -> hstore는 alice의 receipt의 이상유무를 확인한다.
  
 #### 데모를 동작하기 위해서
-test.js는 사용자의 입력을 대기하는 프로세스이다.
+test.js는 사용자의 입력을 대기하는 프로세스이다.\n
 수신가능한 입력은 init, onboarding, schema, govid, receipt, order, wallet, close이다.
