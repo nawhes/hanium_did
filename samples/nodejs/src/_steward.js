@@ -74,7 +74,7 @@ async function connectWithGov1(){
     };
 
     let ret = JSON.stringify(connectionRequest);
-    console.log(` Request . ${ret}`);
+    // console.log(` Request . ${ret}`);
     return ret;
 }
 
@@ -125,7 +125,7 @@ async function connectWithHstore1(){
     };
 
     let ret = JSON.stringify(connectionRequest);
-    console.log(` Request . ${ret}`);
+    // console.log(` Request . ${ret}`);
     return ret;
 }
 
@@ -177,7 +177,7 @@ async function connectWithHbank1(){
     };
 
 	let ret = JSON.stringify(connectionRequest);
-	console.log(` Request . ${ret}`);
+	// console.log(` Request . ${ret}`);
     return ret;
 }
 

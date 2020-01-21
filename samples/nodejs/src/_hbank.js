@@ -23,8 +23,6 @@ let connectionRequest;
 
 let receiptCredDefId, receiptCredDefJson, receiptCredOfferJson;
 
-let receiptProofRequestJson;
-
 async function init(){
     console.log(` # ${sender} is ready!`);
     
@@ -77,7 +75,7 @@ async function connectWithSteward1(request){
     });
     let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(stewardHbankVerkey, Buffer.from(connectionResponse, 'utf8'));
     console.log(`\"${sender}\" > Send anoncrypted connection response to \"${receiver}\"`);
-	console.log(` Response. ${anoncryptedConnectionResponse}`);
+	// console.log(` Response. ${anoncryptedConnectionResponse}`);
 	
 	return anoncryptedConnectionResponse;
 }
@@ -100,10 +98,15 @@ async function connectWithSteward2(){
 	return authcryptedDidInfo;
 }
 
+let govIdCredDef;
+async function getSchemaId(schemaId){
+    govIdCredDef = schemaId;
+}
+
 async function hbankSchema(){
     console.log(`\"${sender}\" -> Create \"Receipt\" Schema`);
     let [receiptSchemaId, receiptSchema] = await indy.issuerCreateSchema(hbankDid, 'Receipt', '0.1', 
-        ['first_name', 'last_name']);
+        ['from_account', 'dest_account', 'amount']);
 
     console.log(`\"${sender}\" -> Send \"Receipt\" Schema to Ledger`);
     await util.sendSchema(poolHandle, hbankWallet, hbankDid, receiptSchema);
@@ -116,6 +119,7 @@ async function hbankSchema(){
 
     console.log(`\"${sender}\" -> Send  \"Hbank Receipt\" Credential Definition to Ledger`);
     await util.sendCredDef(poolHandle, hbankWallet, hbankDid, receiptCredDefJson);
+    return receiptCredDefId;
 }
 
 async function connectWithAlice1(){
@@ -134,7 +138,7 @@ async function connectWithAlice1(){
     };
 
     let ret = JSON.stringify(connectionRequest);
-    console.log(` Request . ${ret}`);
+    // console.log(` Request . ${ret}`);
     return ret;
 }
 
@@ -154,11 +158,8 @@ async function connectWithAlice1_1(anoncryptedConnectionResponse){
     console.log(`\"${sender}\" > Send Nym to Ledger for \"${receiver} ${sender}\" DID`);
     await util.sendNym(poolHandle, hbankWallet, hbankDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
 }
-let govIdCredDef;
-async function getSchemaId(govId){
-    govIdCredDef = govId;
-}
 
+let receiptProofRequestJson;
 async function createProofRequest(){
     let nonce = await indy.generateNonce();
     receiptProofRequestJson = {
@@ -175,15 +176,18 @@ async function createProofRequest(){
                 'restrictions': [{'cred_def_id': govIdCredDef}]
             },
             'attr3_referent': {
-                'name': 'back_account'
+                'name': 'from_account'
             },
             'attr4_referent': {
-                'name': 'receive_account'
+                'name': 'dest_account'
+            },
+            'attr5_referent': {
+                'name': 'amount'
             }
         },
-        "requested_predicates": {},
-    }
-
+        "requested_predicates": {}
+    };
+    console.log(receiptProofRequestJson);
     console.log(`\"${sender}\" -> Get key for Alice did`);
     aliceHbankVerkey = await indy.keyForDid(poolHandle, hbankWallet, aliceHbankDid);
 
@@ -207,11 +211,51 @@ async function verifyProof(authcryptedReceiptApplicationProofJson){
     
     assert('7458' === decryptedReceiptApplicationProof['requested_proof']['self_attested_attrs']['attr3_referent']);
     assert('7654' === decryptedReceiptApplicationProof['requested_proof']['self_attested_attrs']['attr4_referent']);
-    
-    assert(await indy.verifierVerifyProof(receiptProofRequestJson, decryptedReceiptApplicationProofJson, schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson));
+    assert('50000' === decryptedReceiptApplicationProof['requested_proof']['self_attested_attrs']['attr5_referent']);
 
-    console.log('검증됐냐?????????????????????????????\n????????????????');
+    assert(await indy.verifierVerifyProof(receiptProofRequestJson, decryptedReceiptApplicationProofJson, schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson));
 }
+
+async function createCredentialOffer(){
+    console.log(`\"${sender}\" -> Create \"Receipt\" Credential Offer for Alice`);
+    receiptCredOfferJson = await indy.issuerCreateCredentialOffer(hbankWallet, receiptCredDefId);
+    
+    console.log(`\"${sender}\" -> Get key for Alice did`);
+    aliceHbankVerkey = await indy.keyForDid(poolHandle, hbankWallet, aliceHbankDid);
+
+    console.log(`\"${sender}\" -> Authcrypt \"Receipt\" Credential Offer for Alice`);
+    let authcryptedReceiptCredOffer = await indy.cryptoAuthCrypt(hbankWallet, hbankAliceKey, aliceHbankVerkey, Buffer.from(JSON.stringify(receiptCredOfferJson), 'utf8'));
+
+    console.log(`\"${sender}\" -> Send authcrypted \"Receipt\" Credential Offer to Alice`);
+    // console.log(` Offer . ${authcryptedReceiptCredOffer}`);
+    return authcryptedReceiptCredOffer;
+}
+
+async function createCredential(authcryptedReceiptCredRequest){
+    receiver = "Alice";
+
+    console.log(`\"${sender}\" -> Authdecrypt \"Receipt\" Credential Request from ${receiver}`);
+    let authdecryptedReceiptCredRequestJson;
+    [aliceHbankVerkey, authdecryptedReceiptCredRequestJson] = await util.authDecrypt(hbankWallet, hbankAliceKey, authcryptedReceiptCredRequest);
+
+    console.log(`\"${sender}\" -> Create \"Receipt\" Credential for ${receiver}`);
+    // note that encoding is not standardized by Indy except that 32-bit integers are encoded as themselves. IS-786
+    let receiptCredValues = {
+        "from_account": {"raw": "7458", "encoded": "7458"},
+        "dest_account": {"raw": "7654", "encoded": "7654"},
+        "amount": {"raw": "50000", "encoded": "50000"}
+    };
+
+    let [receiptCredJson] = await indy.issuerCreateCredential(hbankWallet, receiptCredOfferJson, authdecryptedReceiptCredRequestJson, receiptCredValues, null, -1);
+
+    console.log(`\"${sender}\" -> Authcrypt \"Receipt\" Credential for ${receiver}`);
+    let authcryptedReceiptCredJson = await indy.cryptoAuthCrypt(hbankWallet, hbankAliceKey, aliceHbankVerkey, Buffer.from(JSON.stringify(receiptCredJson),'utf8'));
+
+    console.log(`\"${sender}\" -> Send authcrypted \"Receipt\" Credential to ${receiver}`);
+
+    return authcryptedReceiptCredJson;
+}
+
 
 async function close(){
     console.log(`\"${sender}\" -> Close and Delete wallet`);
@@ -230,5 +274,7 @@ module.exports = {
     getSchemaId,
     createProofRequest,
     verifyProof,
+    createCredentialOffer,
+    createCredential,
     close
 }

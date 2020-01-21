@@ -59,35 +59,39 @@ async function main(){
 			// case 'schema':
 				response = await gov.govSchema();
 				await hbank.getSchemaId(response);
-				await hbank.hbankSchema();
-				await hstore.hstoreSchema();
+				response = await hbank.hbankSchema();
+				await hstore.getSchemaId(response);
+				// await hstore.hstoreSchema();
 				break;
 			case 'govid':
 				request = await gov.connectWithAlice1();
 				response = await alice.connectWithGov1(request);
 				await gov.connectWithAlice1_1(response);
 				request = await gov.createCredentialOffer();
-				response = await alice.createMasterSecret(request);
+				response = await alice.govid_createMasterSecret(request);
 				response = await gov.createCredential(response);
-				await alice.storeCredential(response);
+				await alice.govid_storeCredential(response);
 				break;
 			case 'receipt':
 				request = await hbank.connectWithAlice1();
 				response = await alice.connectWithHbank1(request);
 				await hbank.connectWithAlice1_1(response);
 				request = await hbank.createProofRequest();
-				response = await alice.createProof(request);
+				response = await alice.receipt_createProof(request);
 				await hbank.verifyProof(response);
+				request = await hbank.createCredentialOffer();
+				response = await alice.receipt_createMasterSecret(request);
+				response = await hbank.createCredential(response);
+				await alice.receipt_storeCredential(response);
 				break;
-			// case 'order':
-			// 	request = await hstore.connectWithAlice1();
-			// 	response = await alice.connectWithGov1(request);
-			// 	await hstore.connectWithAlice1_1(response);
-			// 	request = await hstore.createCredentialOffer();
-			// 	response = await alice.createMasterSecret(request);
-			// 	response = await hstore.createCredential(response);
-			// 	await alice.storeCredential(response);
-			// 	break;
+			case 'order':
+				request = await hstore.connectWithAlice1();
+				response = await alice.connectWithHstore1(request);
+				await hstore.connectWithAlice1_1(response);
+				request = await hstore.createProofRequest();
+				response = await alice.order_createProof(request);
+				await hstore.verifyProof(response);
+				break;
 			case 'close':
 				await steward.close();
 				await gov.close();

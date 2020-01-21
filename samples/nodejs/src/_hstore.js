@@ -75,7 +75,7 @@ async function connectWithSteward1(request){
     });
     let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(stewardHstoreVerkey, Buffer.from(connectionResponse, 'utf8'));
     console.log(`\"${sender}\" > Send anoncrypted connection response to \"${receiver}\"`);
-	console.log(` Response. ${anoncryptedConnectionResponse}`);
+	// console.log(` Response. ${anoncryptedConnectionResponse}`);
 	
 	return anoncryptedConnectionResponse;
 }
@@ -98,21 +98,26 @@ async function connectWithSteward2(){
 	return authcryptedDidInfo;
 }
 
-async function hstoreSchema(){
-    console.log(`\"${sender}\" -> Create \"Order\" Schema`);
-    let [orderSchemaId, orderSchema] = await indy.issuerCreateSchema(hstoreDid, 'Order', '0.1', ['first_name', 'last_name']);
+// async function hstoreSchema(){
+//     console.log(`\"${sender}\" -> Create \"Order\" Schema`);
+//     let [orderSchemaId, orderSchema] = await indy.issuerCreateSchema(hstoreDid, 'Order', '0.1', ['first_name', 'last_name']);
             
-    console.log(`\"${sender}\" -> Send \"Order\" Schema to Ledger`);
-    await util.sendSchema(poolHandle, hstoreWallet, hstoreDid, orderSchema);
+//     console.log(`\"${sender}\" -> Send \"Order\" Schema to Ledger`);
+//     await util.sendSchema(poolHandle, hstoreWallet, hstoreDid, orderSchema);
 
-    console.log(`\"${sender}\" -> Get \"Order\" Schema from Ledger`);
-    [, orderSchema] = await util.getSchema(poolHandle, hstoreDid, orderSchemaId);
+//     console.log(`\"${sender}\" -> Get \"Order\" Schema from Ledger`);
+//     [, orderSchema] = await util.getSchema(poolHandle, hstoreDid, orderSchemaId);
 
-    console.log(`\"${sender}\" -> Create and store in Wallet \"Hstore Order\" Credential Definition`);
-    [orderCredDefId, orderCredDefJson] = await indy.issuerCreateAndStoreCredentialDef(hstoreWallet, hstoreDid, orderSchema, 'TAG1', 'CL', '{"support_revocation": false}');
+//     console.log(`\"${sender}\" -> Create and store in Wallet \"Hstore Order\" Credential Definition`);
+//     [orderCredDefId, orderCredDefJson] = await indy.issuerCreateAndStoreCredentialDef(hstoreWallet, hstoreDid, orderSchema, 'TAG1', 'CL', '{"support_revocation": false}');
 
-    console.log(`\"${sender}\" -> Send  \"Hstore Order\" Credential Definition to Ledger`);
-    await util.sendCredDef(poolHandle, hstoreWallet, hstoreDid, orderCredDefJson);
+//     console.log(`\"${sender}\" -> Send  \"Hstore Order\" Credential Definition to Ledger`);
+//     await util.sendCredDef(poolHandle, hstoreWallet, hstoreDid, orderCredDefJson);
+// }
+
+let receiptCredDef;
+async function getSchemaId(schemaId){
+    receiptCredDef = schemaId;
 }
 
 async function connectWithAlice1(){
@@ -131,7 +136,7 @@ async function connectWithAlice1(){
     };
 
     let ret = JSON.stringify(connectionRequest);
-    console.log(` Request . ${ret}`);
+    // console.log(` Request . ${ret}`);
     return ret;
 }
 
@@ -152,6 +157,59 @@ async function connectWithAlice1_1(anoncryptedConnectionResponse){
     await util.sendNym(poolHandle, hstoreWallet, hstoreDid, decryptedConnectionResponse['did'], decryptedConnectionResponse['verkey'], null);
 }
 
+let orderProofRequestJson;
+async function createProofRequest(){
+    let nonce = await indy.generateNonce();
+    orderProofRequestJson = {
+        'nonce': nonce,
+        'name': 'Order-Application',
+        'version': '0.1',
+        'requested_attributes': {
+            'attr1_referent': {
+                'name': 'production'
+            },
+            'attr2_referent': {
+                'name': 'dest_address'
+            },
+            'attr3_referent': {
+                'name': 'from_account',
+                'restrictions': [{'cred_def_id': receiptCredDef}]
+            },
+            'attr4_referent': {
+                'name': 'dest_account',
+                'restrictions': [{'cred_def_id': receiptCredDef}]
+            }
+       },
+        "requested_predicates": {}
+    };
+    console.log(orderProofRequestJson);
+    console.log(`\"${sender}\" -> Get key for Alice did`);
+    aliceHstoreVerkey = await indy.keyForDid(poolHandle, hstoreWallet, aliceHstoreDid);
+
+    console.log(`\"${sender}\" -> Authcrypt \"Order-Application\" Proof Request for Alice`);
+    let authcryptedOrderProofRequestJson = await indy.cryptoAuthCrypt(hstoreWallet, hstoreAliceKey, aliceHstoreVerkey, Buffer.from(JSON.stringify(orderProofRequestJson), 'utf8'));
+
+    console.log(`\"${sender}\" -> Send authcrypted \"Order-Application\" Proof Request to Alice`);
+    return authcryptedOrderProofRequestJson;
+}
+
+async function verifyProof(authcryptedOrderApplicationProofJson){
+    let decryptedOrderApplicationProofJson, decryptedOrderApplicationProof;
+    [, decryptedOrderApplicationProofJson, decryptedOrderApplicationProof] = await util.authDecrypt(hstoreWallet, hstoreAliceKey, authcryptedOrderApplicationProofJson);
+
+    let schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson;
+    [schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson] = await util.verifierGetEntitiesFromLedger(poolHandle, hstoreDid, decryptedOrderApplicationProof['identifiers'], 'Hstore');
+
+    console.log("\"@@\" -> Verify \"@@\" Proof from Alice");
+    assert('745' === decryptedOrderApplicationProof['requested_proof']['self_attested_attrs']['attr1_referent']);
+    assert('123' === decryptedOrderApplicationProof['requested_proof']['self_attested_attrs']['attr2_referent']);
+    
+    assert('7458' === decryptedOrderApplicationProof['requested_proof']['revealed_attrs']['attr3_referent']['raw']);
+    assert('7654' === decryptedOrderApplicationProof['requested_proof']['revealed_attrs']['attr4_referent']['raw']);
+    
+    assert(await indy.verifierVerifyProof(orderProofRequestJson, decryptedOrderApplicationProofJson, schemasJson, credDefsJson, revocRefDefsJson, revocRegsJson));
+}
+
 async function close(){
     console.log(`\"${sender}\" -> Close and Delete wallet`);
     await indy.closeWallet(hstoreWallet);
@@ -160,12 +218,13 @@ async function close(){
 
 module.exports = {
     init,
-    hstoreSchema,
+    // hstoreSchema,
+    getSchemaId,
     connectWithSteward1,
     connectWithSteward2,
     connectWithAlice1,
     connectWithAlice1_1,
-    // createProofRequest,
-    // verifyProof,
+    createProofRequest,
+    verifyProof,
     close
 }

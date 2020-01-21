@@ -75,7 +75,7 @@ async function connectWithSteward1(request){
     });
     let anoncryptedConnectionResponse = await indy.cryptoAnonCrypt(stewardGovVerkey, Buffer.from(connectionResponse, 'utf8'));
     console.log(`\"${sender}\" > Send anoncrypted connection response to \"${receiver}\"`);
-    console.log(` Response. ${anoncryptedConnectionResponse}`);
+    // console.log(` Response. ${anoncryptedConnectionResponse}`);
 	
     return anoncryptedConnectionResponse;
 }
@@ -115,7 +115,7 @@ async function connectWithAlice1(){
     };
 
     let ret = JSON.stringify(connectionRequest);
-    console.log(` Request . ${ret}`);
+    // console.log(` Request . ${ret}`);
     return ret;
 }
 
@@ -149,7 +149,7 @@ async function govSchema(){
 
     console.log(`\"${sender}\" -> Create and store in Wallet \"Government GovId\" Credential Definition`);
     [govIdCredDefId, govIdCredDefJson] = await indy.issuerCreateAndStoreCredentialDef(govWallet, govDid, govIdSchema, 'TAG1', 'CL', '{"support_revocation": false}');
-    console.log(` ##### govIdCredDefId = ${govIdCredDefId}`);
+    // console.log(` ##### govIdCredDefId = ${govIdCredDefId}`);
     console.log(`\"${sender}\" -> Send  \"Government GovId\" Credential Definition to Ledger`);
     await util.sendCredDef(poolHandle, govWallet, govDid, govIdCredDefJson);
     return govIdCredDefId;
@@ -166,7 +166,7 @@ async function createCredentialOffer(){
      let authcryptedGovIdCredOffer = await indy.cryptoAuthCrypt(govWallet, govAliceKey, aliceGovVerkey, Buffer.from(JSON.stringify(govIdCredOfferJson), 'utf8'));
 
      console.log(`\"${sender}\" -> Send authcrypted \"GovId\" Credential Offer to Alice`);
-     console.log(` Offer . ${authcryptedGovIdCredOffer}`);
+    //  console.log(` Offer . ${authcryptedGovIdCredOffer}`);
      return authcryptedGovIdCredOffer;
 }
 
@@ -190,7 +190,7 @@ async function createCredential(authcryptedGovIdCredRequest){
      let authcryptedGovIdCredJson = await indy.cryptoAuthCrypt(govWallet, govAliceKey, aliceGovVerkey, Buffer.from(JSON.stringify(govIdCredJson),'utf8'));
 
      console.log(`\"${sender}\" -> Send authcrypted \"GovId\" Credential to ${receiver}`);
-     console.log(` GovIdCredential . ${authcryptedGovIdCredJson}`);
+    //  console.log(` GovIdCredential . ${authcryptedGovIdCredJson}`);
 
      return authcryptedGovIdCredJson;
 }
