@@ -1,6 +1,4 @@
-##데모 소스
-
-####개요
+#### 개요
 해당 데모는 전자상거래의 주문입력을 DID환경에서 처리하는 프로세스를 다루며
 Hyperledger indy 환경에서 동작한다.
 모든 소스는 github.com/hyperledger/indy-sdk.git을 참조하였다.
